@@ -26,11 +26,9 @@ export default function PrivateSpace() {
     <div className="screen ps">
       <div className="ps-bar">
         <button className="rbtn" aria-label="Back" onClick={goBack}><ArrowLeft size={24} /></button>
-        <div className="brand-mini"><BrandLogo width={136} /></div>
+        <h1 className="ps-bar-title">Private Space</h1>
         <button className="rbtn" aria-label="Private Space lock settings" onClick={() => setLockOpen(true)}><MoreVertical size={22} /></button>
       </div>
-      <div className="ps-hero"><img src="/assets/lock-hero.svg" alt="" /></div>
-      <div className="ps-title"><h1>Private Space</h1><p>Your personal space, keep it safe</p><i /></div>
       <div className="ps-grid">
         {CARDS.map((c) => (
           <button key={c.to} className="ps-card" onClick={() => nav(c.to)}>
