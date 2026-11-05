@@ -165,10 +165,10 @@ export function useGoBack(fallback = '/home') {
 
 export function AppHeader({ title, back, right, dark, children, fallback }) {
   const nav = useNavigate();
-  const goBack = useGoBack(fallback);
+  const goBack = useGoBack(typeof back === 'string' ? back : fallback);
   return (
     <header className="app-header" style={dark ? { color: '#fff' } : undefined}>
-      {back && <button className="icon-btn" aria-label="Back" onClick={() => (typeof back === 'string' ? nav(back) : goBack())}><ArrowLeft size={22} /></button>}
+      {back && <button className="icon-btn" aria-label="Back" onClick={() => goBack()}><ArrowLeft size={22} /></button>}
       <div className="title">{title}{children}</div>
       {right}
     </header>

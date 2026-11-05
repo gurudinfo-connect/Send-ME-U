@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Lock, ShieldCheck, Fingerprint, ScanFace } from 'lucide-react';
-import { BrandLogo, Button, TextField, Modal, Toggle, ErrorBox } from '../components/ui';
+import { BrandLogo, Button, TextField, Modal, Toggle, ErrorBox, useGoBack } from '../components/ui';
 import { useAuth, useUI, usePrivate } from '../store';
 import { lockConfig, setPassword, verifyPassword, disableLock, clearLock, biometricAvailable, biometricLabel, isIOS, enrollBiometric, verifyBiometric, disableBiometric } from '../services/privateLock';
 
@@ -26,6 +26,7 @@ export function PrivateGate() {
 
 function LockScreen({ mode }) {
   const nav = useNavigate();
+  const goBack = useGoBack('/home');
   const notify = useUI((s) => s.notify);
   const logout = useAuth((s) => s.logout);
   const [pw, setPw] = useState('');
@@ -71,7 +72,7 @@ function LockScreen({ mode }) {
     <div className="screen ps plock">
       <i className="ps-arch" />
       <div className="ps-bar">
-        <button className="rbtn" aria-label="Back" onClick={() => nav('/home', { replace: true })}><ArrowLeft size={24} /></button>
+        <button className="rbtn" aria-label="Back" onClick={goBack}><ArrowLeft size={24} /></button>
         <div className="brand-mini"><BrandLogo width={136} /></div><span style={{ width: 46 }} />
       </div>
       <div className="ps-hero"><img src="/assets/lock-hero.svg" alt="" /></div>

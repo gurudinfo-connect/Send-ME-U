@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useNavigate, useNavigationType } from 'react-router-dom';
+
+let homeScroll = 0; // remembered so Back from Private Space etc. returns to the same spot in the chat list
 import { Search, X, Plus, ChevronRight, MessageSquareLock, BellOff, Camera } from 'lucide-react';
 import { BrandBar, DropMenu, GlassTabs, ListSkeleton, Empty, ErrorState, useAsync, BrandLogo } from '../components/ui';
 import { api, USE_MOCK } from '../services/api';
@@ -29,6 +31,8 @@ function ChatRow({ c, onClick, streak }) {
 
 // Chats tab — conversation list (locked chats live in Private Space)
 export default function Home() {
+  const scrollRef = useRef(null);
+  const navType = useNavigationType();
   const nav = useNavigate();
   useEffect(() => { usePrivate.getState().lock(); }, []); // Private Space asks for the password again next time
   const setUnread = useUI((s) => s.setUnread);
@@ -71,6 +75,7 @@ export default function Home() {
 
   const list = all.filter((c) => (filter === 'unread' ? c.unread > 0 : filter === 'favorites' ? c.favorite : filter === 'groups' ? c.kind === 'groups' : filter === 'streaks' ? (streaks.byId[c.id]?.count > 0) : true))
     .sort((a, b) => (filter === 'streaks' ? (streaks.byId[b.id]?.count || 0) - (streaks.byId[a.id]?.count || 0) : 0));
+  useLayoutEffect(() => { if (navType === 'POP' && scrollRef.current) scrollRef.current.scrollTop = homeScroll; }, [list.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const chips = [['all', 'All'], ['unread', 'Unread', unread], ['favorites', 'Favorites'], ['groups', 'Groups', groups], ['streaks', '🔥 Streaks', streakCount]];
 
   return (
@@ -103,7 +108,7 @@ export default function Home() {
       </div>
 
       <div className="label-line">Chats</div>
-      <div className="scroll" style={{ padding: 0 }}>
+      <div className="scroll" ref={scrollRef} onScroll={(e) => { homeScroll = e.currentTarget.scrollTop; }} style={{ padding: 0 }}>
         {convos.loading && <div style={{ padding: '0 18px' }}><ListSkeleton /></div>}
         {convos.error && <ErrorState message={convos.error} onRetry={convos.reload} />}
         {!convos.loading && !convos.error && list.length === 0 && <Empty title="Nothing here yet" text={q ? 'No results for your search.' : 'Start a conversation to see it here.'} />}
