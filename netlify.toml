@@ -1,0 +1,26 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+  # "true" = demo mode (no backend needed). For a real backend set to "false" and fill in the two URLs below (must be https).
+  VITE_USE_MOCK = "true"
+  # VITE_API_BASE_URL = "https://your-api.example.com/api/v1"
+  # VITE_SOCKET_URL = "https://your-api.example.com"
+
+# single-page app: every route (/login, /home ...) serves index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json"
