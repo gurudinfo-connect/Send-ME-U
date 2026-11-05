@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lock, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Lock, ShieldCheck, Fingerprint, ScanFace } from 'lucide-react';
 import { BrandLogo, Button, TextField, Modal, Toggle, ErrorBox } from '../components/ui';
 import { useAuth, useUI, usePrivate } from '../store';
-import { lockConfig, setPassword, verifyPassword, disableLock, clearLock } from '../services/privateLock';
+import { lockConfig, setPassword, verifyPassword, disableLock, clearLock, biometricAvailable, biometricLabel, isIOS, enrollBiometric, verifyBiometric, disableBiometric } from '../services/privateLock';
 
 const MIN = 4;
+
+function useBiometric() {
+  const [ok, setOk] = useState(false);
+  useEffect(() => { let on = true; biometricAvailable().then((v) => on && setOk(v)); return () => { on = false; }; }, []);
+  const label = biometricLabel();
+  return { ok, label, Icon: isIOS() ? ScanFace : Fingerprint };
+}
 
 // Wraps every Private Space route: first time → create a password, afterwards → ask for it each time.
 export function PrivateGate() {
@@ -26,6 +33,9 @@ function LockScreen({ mode }) {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [forgot, setForgot] = useState(false);
+  const bio = useBiometric();
+  const [useBio, setUseBio] = useState(false);
+  const bioOn = mode === 'unlock' && !!lockConfig()?.bio && bio.ok;
   const fails = useRef({ n: 0, until: 0 });
   const [shake, setShake] = useState(false);
   const bad = (m) => { setErr(m); setShake(true); setTimeout(() => setShake(false), 450); };
@@ -35,8 +45,11 @@ function LockScreen({ mode }) {
     if (mode === 'setup') {
       if (pw.length < MIN) return bad(`Use at least ${MIN} characters`);
       if (pw !== pw2) return bad('Passwords do not match');
-      setBusy(true); await setPassword(pw); setBusy(false);
-      usePrivate.getState().unlock(); usePrivate.getState().refresh(); notify('Private Space lock is on');
+      setBusy(true); await setPassword(pw);
+      let msg = 'Private Space lock is on';
+      if (useBio && bio.ok) msg = (await enrollBiometric()) ? `Private Space lock is on — ${bio.label} unlock enabled` : `Lock is on, but ${bio.label} couldn’t be set up`;
+      setBusy(false);
+      usePrivate.getState().unlock(); usePrivate.getState().refresh(); notify(msg);
       return;
     }
     const wait = fails.current.until - Date.now();
@@ -47,6 +60,11 @@ function LockScreen({ mode }) {
     if (fails.current.n >= 5) { fails.current = { n: 0, until: Date.now() + 30000 }; return bad('Too many attempts. Try again in 30s'); }
     setPw(''); bad('Wrong password');
   };
+  const bioUnlock = async (silent) => {
+    setErr(''); setBusy(true); const ok = await verifyBiometric(); setBusy(false);
+    if (ok) usePrivate.getState().unlock(); else if (!silent) setErr(`${bio.label} didn’t unlock. Enter your password instead.`);
+  };
+  useEffect(() => { if (bioOn) bioUnlock(true); }, [bioOn]); // eslint-disable-line react-hooks/exhaustive-deps
   const reset = () => { clearLock(); usePrivate.getState().lock(); logout(); nav('/login', { replace: true }); };
 
   return (
@@ -65,8 +83,16 @@ function LockScreen({ mode }) {
       <form className={`plock-form ${shake ? 'shake' : ''}`} onSubmit={submit}>
         <TextField type="password" icon={Lock} placeholder={mode === 'setup' ? 'New password' : 'Password'} value={pw} onChange={(e) => setPw(e.target.value)} autoFocus autoComplete="off" />
         {mode === 'setup' && <TextField type="password" icon={ShieldCheck} placeholder="Confirm password" value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="off" />}
+        {mode === 'setup' && bio.ok && (
+          <div className="plock-bio">
+            <bio.Icon size={24} />
+            <div className="txt"><b>Unlock with {bio.label}</b><small>Skip typing your password next time</small></div>
+            <Toggle on={useBio} label={`Unlock with ${bio.label}`} onChange={setUseBio} />
+          </div>
+        )}
         <ErrorBox>{err}</ErrorBox>
         <Button type="submit" loading={busy}>{mode === 'setup' ? 'Enable lock' : 'Unlock'}</Button>
+        {bioOn && <Button type="button" variant="outline" onClick={() => bioUnlock(false)}><bio.Icon size={20} /> Use {bio.label}</Button>}
         {mode === 'unlock' && <button type="button" className="plock-forgot" onClick={() => setForgot(true)}>Forgot password?</button>}
       </form>
       <Modal open={forgot} onClose={() => setForgot(false)} title="Reset Private Space lock?">
@@ -83,6 +109,7 @@ export function LockSettings({ open, onClose }) {
   const notify = useUI((s) => s.notify);
   const cfg = lockConfig();
   const on = !!cfg?.enabled;
+  const bio = useBiometric();
   const [step, setStep] = useState(null); // null | 'disable' | 'enable' | 'change'
   const [cur, setCur] = useState(''); const [pw, setPw] = useState(''); const [pw2, setPw2] = useState('');
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
@@ -112,6 +139,16 @@ export function LockSettings({ open, onClose }) {
             <span className="grow">Ask for password to open</span>
             <Toggle on={on} label="Password lock" onChange={(v) => setStep(v ? 'enable' : 'disable')} />
           </div>
+          {on && bio.ok && (
+            <div className="menu-row" style={{ marginBottom: 8 }}>
+              <span className="grow">Unlock with {bio.label}</span>
+              <Toggle on={!!cfg?.bio} label={`Unlock with ${bio.label}`} onChange={async (v) => {
+                if (!v) { disableBiometric(); usePrivate.getState().refresh(); return notify(`${bio.label} unlock is off`); }
+                const ok = await enrollBiometric(); usePrivate.getState().refresh();
+                notify(ok ? `${bio.label} unlock is on` : `Couldn’t set up ${bio.label}`);
+              }} />
+            </div>
+          )}
           {on && <Button variant="outline" onClick={() => setStep('change')}>Change password</Button>}
           <p className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>{on ? 'You’ll enter your password every time you open Private Space.' : 'Turn on to protect Private Space with a password.'}</p>
         </>
