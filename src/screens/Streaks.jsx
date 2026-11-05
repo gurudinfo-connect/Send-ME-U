@@ -59,7 +59,7 @@ export default function Streaks() {
 
             <div className="st-sec">Longest streak{best ? ` · ${best} days` : ''}</div>
             {items.filter((s) => s.longest > 0).sort((a, b) => b.longest - a.longest).map((s) => (
-              <div key={s.friendshipId} className="st-set"><span className="grow"><b style={{ fontWeight: 500 }}>{s.friend.name}</b><small>Best run {s.longest} days{s.nextMilestone && s.count > 0 ? ` · next badge at ${s.nextMilestone}` : ''}</small></span><span className="st-badge sm"><span className="fire">🔥</span><b>{s.longest}</b></span></div>
+              <div key={s.friendshipId} className="st-set"><span className="grow"><b>{s.friend.name}</b><small>Best run {s.longest} days{s.nextMilestone && s.count > 0 ? ` · next badge at ${s.nextMilestone}` : ''}</small></span><span className="st-badge sm"><span className="fire">🔥</span><b>{s.longest}</b></span></div>
             ))}
 
             <div className="st-sec">Milestone badges</div>
@@ -81,12 +81,12 @@ export default function Streaks() {
             <div className="st-sec">Reminders</div>
             <button className="st-set" role="switch" aria-checked={!!p.enabled} onClick={() => toggle({ enabled: !p.enabled })}>
               {p.enabled ? <Bell size={20} /> : <BellOff size={20} />}
-              <span className="grow"><b style={{ fontWeight: 500 }}>Streak reminders</b><small>One gentle nudge a day, only when a streak is close to ending. Separate from message notifications.</small></span>
+              <span className="grow"><b>Streak reminders</b><small>One gentle nudge a day, only when a streak is close to ending. Separate from message notifications.</small></span>
               <span className={`toggle ${p.enabled ? 'on' : ''}`} aria-hidden />
             </button>
             {p.enabled && (
               <button className="st-set" role="switch" aria-checked={p.push !== false} onClick={() => toggle({ push: p.push === false })}>
-                <span className="grow"><b style={{ fontWeight: 500 }}>Push notifications</b><small>In-app reminders stay on while reminders are enabled.</small></span>
+                <span className="grow"><b>Push notifications</b><small>In-app reminders stay on while reminders are enabled.</small></span>
                 <span className={`toggle ${p.push !== false ? 'on' : ''}`} aria-hidden />
               </button>
             )}

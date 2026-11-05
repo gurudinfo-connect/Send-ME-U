@@ -90,7 +90,7 @@ export default function Timeline() {
             <div className="meta"><b>{a.name}</b><small>· {a.ago}</small><p>{a.text}</p></div>
             <span style={{ position: 'relative', display: 'inline-flex' }}>
               <img className="th" src={a.thumb} alt="" />
-              {a.more && <span style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 34, borderRadius: '0 10px 10px 0', background: 'rgba(30,30,40,.6)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 15 }}>{a.more}</span>}
+              {a.more && <span style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 34, borderRadius: '0 10px 10px 0', background: 'rgba(30,30,40,.6)', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 400, fontSize: 15 }}>{a.more}</span>}
             </span>
             <button className="more" aria-label="More"><MoreVertical size={18} /></button>
           </div>

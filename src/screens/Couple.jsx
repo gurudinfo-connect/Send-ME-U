@@ -48,9 +48,9 @@ export function Couple() {
           c.data.partner ? (
             <>
               <div className="couple-hero">
-                <div className="center"><Avatar src={c.data.partner.avatar} size={92} /><div style={{ fontSize: 13.5, fontWeight: 600, marginTop: 6 }}>{c.data.partner.name}</div></div>
+                <div className="center"><Avatar src={c.data.partner.avatar} size={92} /><div style={{ fontSize: 13.5, fontWeight: 400, marginTop: 6 }}>{c.data.partner.name}</div></div>
                 <Heart size={30} color="#ff4d6d" fill="#ff4d6d" style={{ margin: '-24px -10px 0', zIndex: 2 }} />
-                <div className="center"><Avatar src={user?.avatar} size={92} /><div style={{ fontSize: 13.5, fontWeight: 600, marginTop: 6 }}>{user?.name}</div></div>
+                <div className="center"><Avatar src={user?.avatar} size={92} /><div style={{ fontSize: 13.5, fontWeight: 400, marginTop: 6 }}>{user?.name}</div></div>
               </div>
               <div className="together"><span className="muted" style={{ fontSize: 13 }}>Together for</span><b>{dayDiff(c.data.startDate)} Days</b>
                 <span className="muted" style={{ fontSize: 12 }}>Anniversary in {daysUntil(c.data.anniversary)} days 🎉</span></div>

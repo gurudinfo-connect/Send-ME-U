@@ -317,7 +317,7 @@ export function Chat() {
       ) : rec ? (
         <div className="composer">
           <button className="icon-btn" aria-label="Cancel recording" onClick={() => stopRec(true)}><Trash2 size={22} color="#ff3b5c" /></button>
-          <div className="input" style={{ justifyContent: 'center', color: '#ff3b5c', fontWeight: 600 }}>● Recording 0:{String(rec.secs).padStart(2, '0')}</div>
+          <div className="input" style={{ justifyContent: 'center', color: '#ff3b5c' }}>● Recording 0:{String(rec.secs).padStart(2, '0')}</div>
           <button className="mic rec" aria-label="Send voice message" onClick={() => stopRec(false)}><Send size={20} /></button>
         </div>
       ) : (

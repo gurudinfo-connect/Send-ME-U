@@ -91,7 +91,7 @@ export function SignUp() {
       </form>
       <div className="divider">or continue with</div>
       <SocialRow />
-      <p className="center" style={{ fontSize: 15.5, marginTop: 'auto', paddingTop: 18, color: '#4b4785' }}>Already have an account? <Link className="link" style={{ fontWeight: 700 }} to="/login">Login</Link></p>
+      <p className="center" style={{ fontSize: 15.5, marginTop: 'auto', paddingTop: 18, color: '#4b4785' }}>Already have an account? <Link className="link" to="/login">Login</Link></p>
     </div>
   );
 }

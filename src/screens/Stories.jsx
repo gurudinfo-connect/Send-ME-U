@@ -62,7 +62,7 @@ export function Stories() {
           {list.map((s, k) => (
             <button key={s.id} className="story-item" onClick={() => jump(k)} aria-label={`Open ${s.name}'s story`} style={{ opacity: k === si ? 1 : .75 }}>
               <Avatar src={s.avatar} size={54} ring />
-              <span style={{ fontWeight: k === si ? 600 : 400 }}>{s.name}</span>
+              <span>{s.name}</span>
             </button>
           ))}
         </div>
