@@ -1436,3 +1436,11 @@ html[data-contrast='high'][data-theme='dark'] { --ink-2: #f4f4f5; --muted: #e4e4
 
 /* ===== Private Space: simple top-left title (no lock illustration) ===== */
 .screen.ps .ps-bar .ps-bar-title { flex: 1; margin: 0 0 0 12px; text-align: left; font-size: 22px; font-weight: 700; letter-spacing: -.01em; color: var(--ps-text, var(--ink)); }
+
+/* ===== Font weight: match the Chats page (medium 500) on Calls, Daily and the other pages ===== */
+.page-title h1, .sec-head h2, .app-header .title, .prof-head h1,
+.my-story .txt b, .chan .nm, .call-row .nm, .pcard .nm, .pcard .st b, .act .meta b,
+.p-row .t b, .p-list.compact .p-row .t b, .ps-card b, .ps-couple .nm, .chat-head .who b,
+.convo .name, .pill-cta, .link-blue, .qa, .event .grow, .h1, .h2,
+.cc-head h2, .cc-appt b, .st-card h2, .ll-row b, .mp-top b, .ci-member b, .yh-bar-title { font-weight: 500; }
+.p-sub, .ci-sec, .st-sec, .mp-label, .mx-h, .yp-h, .cc-sub, .cc-h4 { font-weight: 500; }
