@@ -56,7 +56,11 @@ function LockScreen({ mode }) {
     const wait = fails.current.until - Date.now();
     if (wait > 0) return bad(`Too many attempts. Try again in ${Math.ceil(wait / 1000)}s`);
     setBusy(true); const ok = await verifyPassword(pw); setBusy(false);
-    if (ok) { fails.current.n = 0; usePrivate.getState().unlock(); return; }
+    if (ok) {
+      fails.current.n = 0;
+      if (useBio && bio.ok && !lockConfig()?.bio) { const done = await enrollBiometric(); notify(done ? `${bio.label} unlock is on` : `Couldn’t set up ${bio.label}`); usePrivate.getState().refresh(); }
+      usePrivate.getState().unlock(); return;
+    }
     fails.current.n += 1;
     if (fails.current.n >= 5) { fails.current = { n: 0, until: Date.now() + 30000 }; return bad('Too many attempts. Try again in 30s'); }
     setPw(''); bad('Wrong password');
@@ -84,10 +88,10 @@ function LockScreen({ mode }) {
       <form className={`plock-form ${shake ? 'shake' : ''}`} onSubmit={submit}>
         <TextField type="password" icon={Lock} placeholder={mode === 'setup' ? 'New password' : 'Password'} value={pw} onChange={(e) => setPw(e.target.value)} autoFocus autoComplete="off" />
         {mode === 'setup' && <TextField type="password" icon={ShieldCheck} placeholder="Confirm password" value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="off" />}
-        {mode === 'setup' && bio.ok && (
+        {bio.ok && (mode === 'setup' || !lockConfig()?.bio) && (
           <div className="plock-bio">
             <bio.Icon size={24} />
-            <div className="txt"><b>Unlock with {bio.label}</b><small>Skip typing your password next time</small></div>
+            <div className="txt"><b>Unlock with {bio.label}</b><small>{mode === 'setup' ? 'Skip typing your password next time' : 'Turn on, then enter your password once to set it up'}</small></div>
             <Toggle on={useBio} label={`Unlock with ${bio.label}`} onChange={setUseBio} />
           </div>
         )}
