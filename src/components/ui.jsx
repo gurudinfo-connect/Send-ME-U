@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate, useLocation, useNavigationType } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, MessageSquareText, Users, Phone, X, Inbox, AlertTriangle, Eye, EyeOff, Search, Bell, MoreVertical, ChevronRight } from 'lucide-react';
+import { ArrowLeft, MessageSquareText, Users, Phone, Video, Info, X, Inbox, AlertTriangle, Eye, EyeOff, Search, Bell, MoreVertical, ChevronRight } from 'lucide-react';
 import { useUI, useAuth } from '../store';
-import { api } from '../services/api';
+import { api, errMsg } from '../services/api';
 import { logoIcon } from '../data/art';
 
 // Brand: the bubble + paper-plane mark, plus a live-text wordmark so it stays legible on light AND dark screens.
@@ -282,66 +282,102 @@ export function GlassTabs({ items, value, onChange, label }) {
   );
 }
 
-// WhatsApp-style profile photo viewer: tap an avatar -> the picture alone grows out of the avatar to fill a black screen
-// (no chat behind it). Back arrow / Escape / tapping the black area shrinks it back into the avatar.
+// Profile zoom, built from the reference recording: tapping an avatar dims the whole app and grows a card out of that
+// avatar — square photo with the name on a darker strip across its top, and a bar of four outline icons underneath
+// (Message, Voice call, Video call, Info). No close button: tap outside the card, Escape or Back dismisses it and the
+// card shrinks back into the avatar. Message/Info use the existing routes; calls use the same api.placeCall as the Calls tab.
+const PZ_RATIO = 566 / 476;      // card height / width, measured from the reference
 export function ProfilePreview({ contact, from, onClose }) {
+  const nav = useNavigate();
+  const notify = useUI((s) => s.notify);
   const [broken, setBroken] = useState(false);
+  const [geo, setGeo] = useState(null);
   const root = useRef(null);
-  const pic = useRef(null);
+  const card = useRef(null);
   const closing = useRef(false);
+  const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const name = contact?.name || '';
   const avatar = contact?.avatar;
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
-  const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // transform that makes the enlarged picture look exactly like the small avatar it came from
-  const fromAvatar = () => {
-    const el = pic.current;
-    if (!el || !from || !from.width) return null;
-    const to = el.getBoundingClientRect();
-    if (!to.width) return null;
-    const k = from.width / to.width;
-    return `translate(${from.left + from.width / 2 - (to.left + to.width / 2)}px, ${from.top + from.height / 2 - (to.top + to.height / 2)}px) scale(${k})`;
-  };
-  useEffect(() => {
-    if (!contact) return undefined;
-    closing.current = false;
-    const t = fromAvatar();
-    if (!reduce) {
-      root.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'ease-out', fill: 'both' });
-      pic.current?.animate(t ? [{ transform: t, borderRadius: '50%' }, { transform: 'none', borderRadius: '0%' }] : [{ transform: 'scale(.8)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 260, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'both' });
-    }
-    const prev = document.activeElement;
-    root.current?.querySelector('button')?.focus({ preventScroll: true });
-    return () => prev?.focus?.({ preventScroll: true });
+  // size + place the card like the reference: 66% of the width, centred, top at ~20.5% of the height (kept on-screen)
+  useLayoutEffect(() => {
+    if (!contact) { setGeo(null); return; }
+    const r = root.current.getBoundingClientRect();
+    let w = r.width * 0.66;
+    if (w * PZ_RATIO > r.height - 24) w = (r.height - 24) / PZ_RATIO;
+    const h = w * PZ_RATIO;
+    setGeo({ w, top: Math.max(12, Math.min(r.height * 0.2048, r.height - h - 12)) });
   }, [contact?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const close = () => {
+  // the card travels between the avatar's rectangle and its resting place (and the avatar's circle -> square corners)
+  const origin = () => {
+    const el = card.current;
+    if (!el || !from || !from.width) return null;
+    const c = el.getBoundingClientRect();
+    if (!c.width) return null;
+    return { t: `translate(${from.left + from.width / 2 - (c.left + c.width / 2)}px, ${from.top + from.height / 2 - (c.top + c.height / 2)}px) scale(${from.width / c.width})`, r: `${c.width / 2}px` };
+  };
+  useEffect(() => {
+    if (!geo || reduce) return;
+    closing.current = false;
+    const o = origin();
+    root.current?.animate([{ background: 'rgba(0,0,0,0)' }, { background: 'rgba(0,0,0,.43)' }], { duration: 250, easing: 'ease-out' });
+    card.current?.animate(o ? [{ transform: o.t, borderRadius: o.r }, { transform: 'none', borderRadius: '0px' }] : [{ transform: 'scale(.6)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 250, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  }, [geo]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!geo) return undefined;
+    const prev = document.activeElement;
+    card.current?.querySelector('button')?.focus({ preventScroll: true });
+    return () => prev?.focus?.({ preventScroll: true });
+  }, [geo]);
+
+  const close = (after) => {
     if (closing.current || !root.current) return;
     closing.current = true;
-    if (reduce) { onClose(); return; }
-    const t = fromAvatar();
-    root.current.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: 'ease-in', fill: 'both' });
-    const a = pic.current?.animate(t ? [{ transform: 'none', borderRadius: '0%' }, { transform: t, borderRadius: '50%' }] : [{ transform: 'none', opacity: 1 }, { transform: 'scale(.9)', opacity: 0 }], { duration: 200, easing: 'ease-in', fill: 'both' });
-    if (a) a.onfinish = () => onClose(); else onClose();
-    setTimeout(() => { if (closing.current && root.current) onClose(); }, 350); // safety net if the animation never reports finish
+    const done = () => { onClose(); after?.(); };
+    if (reduce) { done(); return; }
+    const o = origin();
+    root.current.animate([{ background: 'rgba(0,0,0,.43)' }, { background: 'rgba(0,0,0,0)' }], { duration: 220, easing: 'ease-in', fill: 'forwards' });
+    const a = card.current?.animate(o ? [{ transform: 'none', borderRadius: '0px' }, { transform: o.t, borderRadius: o.r }] : [{ transform: 'none', opacity: 1 }, { transform: 'scale(.6)', opacity: 0 }], { duration: 220, easing: 'cubic-bezier(.4,0,.8,.4)', fill: 'forwards' });
+    if (a) a.onfinish = done; else done();
+    setTimeout(() => { if (closing.current && root.current) done(); }, 400); // safety net
   };
   useEffect(() => {
     if (!contact) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); close(); return; }
+      if (e.key !== 'Tab' || !card.current) return;
+      const f = [...card.current.querySelectorAll('button')];
+      const i = f.indexOf(document.activeElement);
+      e.preventDefault();
+      f[(i + (e.shiftKey ? -1 : 1) + f.length) % f.length]?.focus();
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }); // eslint-disable-line react-hooks/exhaustive-deps
   if (!contact) return null;
+
+  const place = async (video) => {
+    try { await api.placeCall({ name, avatar, fav: false, video }); notify(`${video ? 'Video calling' : 'Calling'} ${name}…`); }
+    catch (e) { notify(errMsg(e)); }
+  };
+  const actions = [
+    ['Message', MessageSquareText, () => close(() => nav(`/chats/${contact.id}`))],
+    ['Voice call', Phone, () => { close(); place(false); }],
+    ['Video call', Video, () => { close(); place(true); }],
+    ['Info', Info, () => close(() => nav(`/chats/${contact.id}/info`))],
+  ];
   return createPortal(
-    <div className="pv-full" role="dialog" aria-modal="true" aria-label={`${name} profile picture`} ref={root} onClick={(e) => { e.stopPropagation(); close(); }}>
-      <div className="pv-bar" onClick={(e) => e.stopPropagation()}>
-        <button className="pv-back" aria-label="Back" onClick={close}><ArrowLeft size={24} /></button>
-        <b className="pv-name">{name}</b>
-      </div>
-      <div className="pv-stage">
-        <div className="pv-pic" ref={pic} onClick={(e) => e.stopPropagation()}>
-          {avatar && !broken ? <img src={avatar} alt={`${name} profile picture`} draggable={false} onError={() => setBroken(true)} /> : <span className="pv-initials" role="img" aria-label={`${name} (no profile picture)`}>{initials}</span>}
+    <div className="pz-scrim" ref={root} onClick={(e) => { e.stopPropagation(); close(); }}>
+      <div className="pz-card" role="dialog" aria-modal="true" aria-label={`${name} profile picture`} ref={card} onClick={(e) => e.stopPropagation()}
+        style={geo ? { width: geo.w, top: geo.top, marginLeft: -geo.w / 2 } : { visibility: 'hidden' }}>
+        <div className="pz-photo">
+          {avatar && !broken ? <img src={avatar} alt={`${name} profile picture`} draggable={false} onError={() => setBroken(true)} /> : <span className="pz-initials" role="img" aria-label={`${name} (no profile picture)`}>{initials}</span>}
+          <b className="pz-name">{name}</b>
+        </div>
+        <div className="pz-actions">
+          {actions.map(([label, Icon, fn]) => <button key={label} className="pz-act" aria-label={label} onClick={fn}><Icon strokeWidth={2} /></button>)}
         </div>
       </div>
     </div>,

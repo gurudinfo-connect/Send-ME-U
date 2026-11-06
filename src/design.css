@@ -1465,13 +1465,13 @@ b, strong, th { font-weight: 400; }
 .head-open .head-av:focus-visible, .head-open .head-name:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 12px; }
 .head-open .head-name { flex: 1; min-width: 0; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: inherit; font: inherit; }
 
-.pv-full { position: absolute; inset: 0; z-index: 90; background: #000; color: #fff; display: flex; flex-direction: column; }
-.pv-bar { display: flex; align-items: center; gap: 6px; padding: calc(var(--safe-top, 0px) + 8px) 12px 8px 6px; flex-shrink: 0; cursor: default; }
-.pv-back { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: none; border: 0; cursor: pointer; }
-.pv-back:hover { background: rgba(255, 255, 255, .1); }
-.pv-back:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
-.pv-name { font-size: 19px; font-weight: 400; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pv-stage { flex: 1; min-height: 0; display: grid; place-items: center; padding-bottom: calc(var(--safe-top, 0px) + 44px); }
-.pv-pic { width: 100%; max-height: 100%; aspect-ratio: 1 / 1; display: grid; place-items: center; overflow: hidden; background: #000; will-change: transform; }
-.pv-pic img { width: 100%; height: 100%; object-fit: contain; display: block; user-select: none; -webkit-user-drag: none; }
-.pv-initials { width: 100%; height: 100%; display: grid; place-items: center; background: #1c1c1e; font-size: 120px; font-weight: 400; color: #a3a3a8; letter-spacing: 2px; }
+.pz-scrim { position: absolute; inset: 0; z-index: 90; background: rgba(0, 0, 0, .43); }
+.pz-card { position: absolute; left: 50%; container-type: inline-size; background: #0b0e15; overflow: hidden; border-radius: 0; will-change: transform; }
+.pz-photo { position: relative; width: 100%; aspect-ratio: 1 / 1; background: #37182a; overflow: hidden; display: grid; place-items: center; }
+.pz-photo img { width: 100%; height: 100%; object-fit: cover; display: block; user-select: none; -webkit-user-drag: none; }
+.pz-initials { font-size: 38cqw; color: #ff6fa5; }
+.pz-name { position: absolute; left: 0; right: 0; top: 0; height: 13.2cqw; display: flex; align-items: center; padding: 0 3.2cqw; background: rgba(0, 0, 0, .25); color: #fff; font-size: 6.2cqw; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pz-actions { display: flex; height: 18.7cqw; background: #0b0e15; }
+.pz-act { flex: 1; display: grid; place-items: center; color: #0fc56a; background: none; border: 0; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.pz-act svg { width: 8cqw; height: 8cqw; }
+.pz-act:focus-visible { outline: 2px solid #0fc56a; outline-offset: -3px; }
