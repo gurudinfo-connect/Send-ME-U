@@ -580,8 +580,9 @@ body { background: #f3ebd8; }
 [data-theme='dark'] .home-hero .private-row { background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .16); opacity: 1; }
 [data-theme='dark'] .home-hero .private-row > * { opacity: .8; color: #d9def7; }
 .filter-row { gap: 6px; padding: 0 14px; }
-.filter-row .gtabs { gap: 6px; overflow: hidden; }
-.filter-row .gtab { flex: 1 1 auto; justify-content: center; height: 34px; padding: 0 10px; gap: 5px; font-size: 13px; }
+.filter-row .gtabs { gap: 6px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; touch-action: pan-x; scroll-snap-type: x proximity; }
+.filter-row .gtabs::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.filter-row .gtab { flex: 0 0 auto; scroll-snap-align: start; justify-content: center; height: 34px; padding: 0 10px; gap: 5px; font-size: 13px; }
 .filter-row .gtab .gn { font-size: 11.5px; }
 .filter-row .fchip.round { height: 36px; width: 36px; }
 

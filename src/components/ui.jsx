@@ -274,7 +274,7 @@ export function GlassTabs({ items, value, onChange, label }) {
     <div className="gtabs" role="tablist" aria-label={label} ref={box}>
       <i className="gthumb" aria-hidden style={thumb ? { transform: `translateX(${thumb.left}px)`, width: thumb.width } : { opacity: 0 }} />
       {items.map(([k, l, n]) => (
-        <button key={k} role="tab" aria-selected={value === k} ref={(el) => { btns.current[k] = el; }} className={`gtab ${value === k ? 'active' : ''}`} onClick={() => onChange(k)}>
+        <button key={k} role="tab" aria-selected={value === k} ref={(el) => { btns.current[k] = el; }} className={`gtab ${value === k ? 'active' : ''}`} onClick={(e) => { onChange(k); e.currentTarget.scrollIntoView?.({ inline: 'center', block: 'nearest', behavior: 'smooth' }); }}>
           {l}{n > 0 && <span className="gn">{n}</span>}
         </button>
       ))}
