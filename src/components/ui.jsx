@@ -311,7 +311,7 @@ export function ProfilePreview({ contact, from, onClose }) {
     // big size: the full width of the screen (or as wide as the height allows), centred vertically
     let bw = r.width;
     if (bw * PZ_RATIO > r.height - 24) bw = (r.height - 24) / PZ_RATIO;
-    const bh = bw * PZ_RATIO;
+    const bh = bw; // big mode is the photo alone (no action bar), so it is square
     setBig(false);
     setGeo({ w, top: Math.max(12, Math.min(r.height * 0.2048, r.height - h - 12)), bw, btop: Math.max(12, (r.height - bh) / 2) });
   }, [contact?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -354,7 +354,7 @@ export function ProfilePreview({ contact, from, onClose }) {
     const onKey = (e) => {
       if (e.key === 'Escape') { e.stopPropagation(); if (big) setBig(false); else close(); return; }
       if (e.key !== 'Tab' || !card.current) return;
-      const f = [...card.current.querySelectorAll('button')];
+      const f = [...root.current.querySelectorAll('button')].filter((b) => b.offsetParent !== null && !(big && b.classList.contains('pz-act')));
       const i = f.indexOf(document.activeElement);
       e.preventDefault();
       f[(i + (e.shiftKey ? -1 : 1) + f.length) % f.length]?.focus();
@@ -376,6 +376,12 @@ export function ProfilePreview({ contact, from, onClose }) {
   ];
   return createPortal(
     <div className={`pz-scrim ${big ? 'big' : ''}`} ref={root} onClick={(e) => { e.stopPropagation(); close(); }}>
+      {big && (
+        <div className="pz-top" onClick={(e) => e.stopPropagation()}>
+          <button type="button" className="pz-back" aria-label="Back" onClick={() => setBig(false)}><ArrowLeft size={26} /></button>
+          <b>{name}</b>
+        </div>
+      )}
       <div className="pz-card" role="dialog" aria-modal="true" aria-label={`${name} profile picture`} ref={card} onClick={(e) => e.stopPropagation()}
         style={geo ? (big ? { width: geo.bw, top: geo.btop, marginLeft: -geo.bw / 2 } : { width: geo.w, top: geo.top, marginLeft: -geo.w / 2 }) : { visibility: 'hidden' }}>
         <button type="button" className="pz-photo" aria-label={big ? 'Make profile picture smaller' : 'Make profile picture bigger'} aria-pressed={big} onClick={() => setBig((v) => !v)}>

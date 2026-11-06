@@ -1484,3 +1484,17 @@ b, strong, th { font-weight: 400; }
 
 /* pressing the avatar must not trigger the whole row's pressed flash/shrink */
 .chat-row.av-press, .chat-row.av-press:active, .chat-row:has(.av-hit:active) { transform: none; background: transparent; }
+
+/* second zoom: photo alone, name beside a back arrow in a top bar, action bar removed */
+.pz-top { position: absolute; left: 0; right: 0; top: 0; z-index: 2; display: flex; align-items: center; gap: 14px; padding: 14px 14px 14px 8px; color: #fff; background: linear-gradient(rgba(0,0,0,.6), rgba(0,0,0,0)); animation: pz-fade .3s ease both; }
+.pz-top b { font-size: 19px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pz-back { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: none; color: #fff; border-radius: 50%; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.pz-back:focus-visible { outline: 2px solid #0fc56a; }
+@keyframes pz-fade { from { opacity: 0; } to { opacity: 1; } }
+.pz-actions { transition: height .32s cubic-bezier(.2, .8, .2, 1), opacity .2s ease; }
+.pz-scrim.big .pz-actions { height: 0; opacity: 0; pointer-events: none; }
+.pz-scrim.big .pz-card { background: transparent; }
+.pz-photo { transition: background .3s ease; }
+.pz-scrim.big .pz-photo { background: transparent; }
+.pz-name { transition: opacity .2s ease; }
+.pz-scrim.big .pz-name { opacity: 0; }
