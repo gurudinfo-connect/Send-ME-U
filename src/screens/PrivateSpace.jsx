@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, MoreVertical, ArrowRight, Lock, Plus, Trash2, MapPin, LocateFixed, MessagesSquare, CalendarDays, Heart } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, MoreVertical, ArrowRight, Lock, Plus, Trash2, MapPin, LocateFixed, ImagePlus, X, MessagesSquare, CalendarDays, Heart } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { BrandLogo, AppHeader, useGoBack, Button, TextField, Modal, Empty, ListSkeleton, ErrorState, useAsync } from '../components/ui';
 import { api, errMsg } from '../services/api';
 import { useUI, usePrivate } from '../store';
@@ -92,6 +92,20 @@ async function geocode(q) {
   } catch { return null; } finally { clearTimeout(t); }
 }
 
+// shrink a picked photo so several fit in storage
+const shrink = (file, max = 720) => new Promise((res, rej) => {
+  const url = URL.createObjectURL(file); const img = new Image();
+  img.onload = () => {
+    const k = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+    res(c.toDataURL('image/jpeg', 0.7));
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('That file is not a picture')); };
+  img.src = url;
+});
+const MAX_PHOTOS = 4;
+
 export function SavedLocations() {
   const notify = useUI((s) => s.notify);
   const [open, setOpen] = useState(false);
@@ -100,16 +114,24 @@ export function SavedLocations() {
   const [busy, setBusy] = useState(false);
   const [list, setList] = useState([]);
   const [gone, setGone] = useState(null);
+  const [photos, setPhotos] = useState([]);
+  const [view, setView] = useState(null); // place whose pictures are open
+  const fileRef = useRef(null);
   const load = async () => { try { setList(await api.places()); } catch { /* keep what we have */ } };
   useEffect(() => { load(); }, []);
   const save = async (b) => {
     setBusy(true);
     try {
       const pos = await geocode(b.address);          // lets the place appear as a pin when it can be found
-      await api.addPlace({ ...b, ...(pos || {}) });
-      setOpen(false); setName(''); setAddr(''); await load();
+      await api.addPlace({ ...b, ...(pos || {}), photos });
+      setOpen(false); setName(''); setAddr(''); setPhotos([]); await load();
       notify(pos ? 'Location saved' : 'Location saved (not found on the map, shown in the list)');
     } catch (e) { notify(errMsg(e)); } finally { setBusy(false); }
+  };
+  const pick = async (e) => {
+    const files = [...(e.target.files || [])].slice(0, MAX_PHOTOS - photos.length); e.target.value = '';
+    try { const out = await Promise.all(files.map((f) => shrink(f))); setPhotos((p) => [...p, ...out].slice(0, MAX_PHOTOS)); }
+    catch (err) { notify(errMsg(err)); }
   };
   const remove = async (pl) => { try { await api.deletePlace(pl.id); setGone(null); await load(); notify('Place removed'); } catch (e) { notify(errMsg(e)); } };
   const here = () => navigator.geolocation?.getCurrentPosition((p) => setAddr(`${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)}`), () => notify('Location unavailable'));
@@ -122,22 +144,41 @@ export function SavedLocations() {
         headerRight={<button className="icon-btn" aria-label="Add location" onClick={() => setOpen(true)}><Plus size={24} /></button>}>
         <div className="ll-card" aria-label="Saved places">
           <div className="ll-row"><span className="ll-ic"><MapPin size={20} /></span><span className="grow"><b>Saved places</b><small>{list.length ? `${list.length} saved` : 'Tap + to save a place'}</small></span></div>
-          {list.map((l) => (
-            <div key={l.id} className="ll-row" style={{ marginTop: 10 }}>
-              <span className="grow"><b>{l.name}</b><small>{l.address}</small></span>
-              <a className="btn btn-outline btn-sm" href={mapsUrl(l)} target="_blank" rel="noopener noreferrer">Open</a>
-              <button className="icon-btn" aria-label={`Remove ${l.name}`} onClick={() => setGone(l)}><Trash2 size={18} /></button>
-            </div>
-          ))}
+          <ul className="sp-list">
+            {list.map((l) => (
+              <li key={l.id} className="sp-row">
+                {l.photos?.length ? (
+                  <button type="button" className="sp-thumb" aria-label={`View pictures of ${l.name}`} onClick={() => setView(l)}>
+                    <img src={l.photos[0]} alt="" />{l.photos.length > 1 && <em>{l.photos.length}</em>}
+                  </button>
+                ) : <span className="sp-thumb empty" aria-hidden><MapPin size={20} /></span>}
+                <span className="sp-meta"><b>{l.name}</b><small>{l.address}</small></span>
+                <span className="sp-acts">
+                  <a className="btn btn-outline btn-sm" href={mapsUrl(l)} target="_blank" rel="noopener noreferrer">Open</a>
+                  <button className="icon-btn" aria-label={`Remove ${l.name}`} onClick={() => setGone(l)}><Trash2 size={18} /></button>
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       </LiveLocation>
-      <Modal open={open} onClose={() => !busy && setOpen(false)} title="Save a place">
+      <Modal open={open} onClose={() => { if (!busy) { setOpen(false); setPhotos([]); } }} title="Save a place">
         <TextField placeholder="Name (e.g. Home)" value={name} onChange={(e) => setName(e.target.value)} />
         <TextField placeholder="Address or coordinates" value={addr} onChange={(e) => setAddr(e.target.value)} />
+        <div className="sp-pics">
+          {photos.map((src, i) => (
+            <span key={i} className="sp-pic"><img src={src} alt={`Picture ${i + 1}`} /><button type="button" aria-label={`Remove picture ${i + 1}`} onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))}><X size={14} /></button></span>
+          ))}
+          {photos.length < MAX_PHOTOS && <button type="button" className="sp-add" onClick={() => fileRef.current?.click()}><ImagePlus size={22} /><span>{photos.length ? 'Add more' : 'Add pictures'}</span></button>}
+        </div>
+        <input ref={fileRef} hidden type="file" accept="image/*" multiple onChange={pick} />
         <div style={{ display: 'grid', gap: 10 }}>
           <Button variant="outline" onClick={here}><LocateFixed size={18} /> Use my location</Button>
           <Button loading={busy} onClick={() => (name.trim() && addr.trim() ? save({ name: name.trim(), address: addr.trim() }) : notify('Add a name and an address'))}>Save place</Button>
         </div>
+      </Modal>
+      <Modal open={!!view} onClose={() => setView(null)} title={view?.name || 'Pictures'}>
+        <div className="sp-gallery">{(view?.photos || []).map((src, i) => <img key={i} src={src} alt={`${view.name} picture ${i + 1}`} />)}</div>
       </Modal>
       <Modal open={!!gone} onClose={() => setGone(null)} title="Remove this place?">
         <p className="muted" style={{ marginBottom: 14 }}>{gone?.name} will be removed from your saved places.</p>
