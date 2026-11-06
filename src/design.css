@@ -1742,6 +1742,3 @@ div.my-story { cursor: pointer; }
 .my-story:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .sm-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
 .se-crop-row { flex-wrap: wrap; }
-
-/* My Story card: the rest of the card is filled with a soft blurred copy of the posted story */
-.my-story .ms-fill { position: absolute; inset: 0; overflow: hidden; pointer-events: none; filter: blur(16px) brightness(.55) saturate(1.25); transform: scale(1.25); }
