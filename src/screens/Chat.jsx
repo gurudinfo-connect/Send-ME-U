@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Video, Phone, MoreVertical, Smile, Paperclip, Mic, Send, Play, Pause, Check, CheckCheck, Image as Img, Camera, MapPin, Trash2, X, Users, Search, Forward, Lock, ArrowLeft, Star, BellOff, ChevronUp, ChevronDown, Check as Tick } from 'lucide-react';
+import { Video, Phone, MoreVertical, Smile, Paperclip, Mic, Send, Play, Pause, Check, CheckCheck, Image as Img, Camera, MapPin, Trash2, X, Users, Search, Forward, Lock, ArrowLeft, Heart, Star, BellOff, ChevronUp, ChevronDown, Check as Tick } from 'lucide-react';
 import { AppHeader, Avatar, Modal, Button, ErrorState, Empty, ListSkeleton, fmtTime, useAsync, TextField, DropMenu, GlassTabs, ProfilePreview } from '../components/ui';
 import { api, errMsg } from '../services/api';
 import { getSocket, emitTyping, joinRoom, leaveRoom } from '../services/socket';
@@ -41,6 +41,21 @@ function VoiceNote({ m, mine }) {
   );
 }
 
+// A reaction / reply to a story, shown in the chat with that person
+function StoryRef({ m }) {
+  const reaction = m.kind === 'reaction';
+  const head = m.story?.owner === 'mine' ? (reaction ? 'Reacted to your story' : 'Replied to your story') : (reaction ? 'You reacted to their story' : 'You replied to their story');
+  return (
+    <div className="story-ref" aria-label={head}>
+      <div className="story-ref-top">
+        {m.story?.src && <img src={m.story.src} alt="Story" />}
+        <span><Heart size={13} fill="currentColor" /> {head}</span>
+      </div>
+      {reaction ? <span className="story-ref-emoji">{m.emoji || '❤️'}</span> : <span>{m.text}</span>}
+    </div>
+  );
+}
+
 function Bubble({ m, avatar, starred, mark, onLongPress, onOpen }) {
   const mine = m.from === 'me';
   const timer = useRef();
@@ -54,6 +69,7 @@ function Bubble({ m, avatar, starred, mark, onLongPress, onOpen }) {
       {!mine && <img className="mav" src={avatar} alt="" />}
       <div className={cls} onPointerDown={down} onPointerUp={up} onPointerLeave={up} onContextMenu={(e) => { e.preventDefault(); onLongPress(m); }}>
         {m.type === 'text' && <span>{m.text}</span>}
+        {m.type === 'story' && <StoryRef m={m} />}
         {m.type === 'voice' && <VoiceNote m={m} mine={mine} />}
         {m.type === 'image' && <img className="media" src={m.src} alt="Shared" onClick={() => onOpen(m)} />}
         {m.type === 'video' && (

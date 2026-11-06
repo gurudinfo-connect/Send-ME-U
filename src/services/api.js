@@ -42,12 +42,47 @@ const db = {
   channels: clone(mock.channels), activity: clone(mock.activity), calls: clone(mock.calls), scheduled: clone(mock.scheduledCalls), places: clone(mock.savedPlaces),
   messages: {}, me: { ...mock.me }, notifications: clone(mock.notifications), couple: clone(mock.couple),
   following: new Set(),
+  storyViewers: clone(mock.storyViewers),
 };
 const uid = () => Math.random().toString(36).slice(2, 9);
 // saved places survive a page reload in demo mode
 const PLACES_KEY = 'smu.places';
 try { const saved = JSON.parse(localStorage.getItem(PLACES_KEY) || 'null'); if (Array.isArray(saved)) db.places = saved; } catch { /* ignore */ }
 const keepPlaces = () => { try { localStorage.setItem(PLACES_KEY, JSON.stringify(db.places)); } catch { /* ignore */ } };
+
+
+// ---- story <-> chat bridge ------------------------------------------------
+// Every like / reply on a story becomes a message in that person's chat (type 'story'),
+// so it shows up in the right conversation with a thumbnail of the story.
+const findStoryItem = (itemId) => { for (const s of db.stories) { const it = s.items.find((i) => i.id === itemId); if (it) return { story: s, item: it }; } return null; };
+const chatFor = (userId, fallback = {}) => {
+  let c = db.conversations.find((x) => x.type === 'direct' && x.friendId === userId);
+  if (!c) {
+    const p = db.people.find((x) => x.id === userId);
+    c = { id: uid(), friendId: userId, type: 'direct', name: (p?.name || fallback.name || 'Friend').split(' ')[0], fullName: p?.name || fallback.name, avatar: p?.avatar || fallback.avatar, last: '', time: 'now', unread: 0, kind: 'messages' };
+    db.conversations.unshift(c);
+  }
+  return c;
+};
+// from: 'me' (I reacted to their story) | 'them' (they reacted to mine)
+function pushStoryMsg({ userId, name, avatar, from, kind, text, emoji, item, owner, at }) {
+  const c = chatFor(userId, { name, avatar });
+  const m = { id: uid(), from, type: 'story', kind, text, emoji, at: at || new Date().toISOString(), status: from === 'me' ? 'sent' : 'read',
+    story: { itemId: item.id, src: item.src, owner } };
+  (db.messages[c.id] ||= mock.messagesFor(c.id)).push(m);
+  c.last = kind === 'reaction' ? `${from === 'me' ? 'You reacted' : 'Reacted'} ${emoji} to a story` : `${from === 'me' ? 'You: ' : ''}${text}`;
+  c.time = 'now'; if (from === 'them') c.unread = (c.unread || 0) + 1;
+  return m;
+}
+// demo: the people who already liked / replied to my story have their messages waiting in chat
+function seedStoryChats() {
+  const mine = db.stories[0];
+  for (const item of mine.items) for (const v of (db.storyViewers[item.id] || [])) {
+    if (v.liked) pushStoryMsg({ userId: v.userId, name: v.name, avatar: v.avatar, from: 'them', kind: 'reaction', emoji: v.reaction || '❤️', item, owner: 'mine' });
+    if (v.reply) pushStoryMsg({ userId: v.userId, name: v.name, avatar: v.avatar, from: 'them', kind: 'reply', text: v.reply, item, owner: 'mine' });
+  }
+}
+if (USE_MOCK) seedStoryChats();
 
 // Every call hits the REST API; with VITE_USE_MOCK=true it resolves from demo data.
 async function call(realFn, mockFn) {
@@ -112,11 +147,31 @@ export const api = {
   addFriend: (id) => call(() => http.post(`/friends/${id}`), () => ({ requested: true })),
   // stories
   stories: () => call(() => http.get('/stories'), () => db.stories),
-  createStory: (file, caption) => call(() => http.post('/stories', form({ media: file, caption }), multipart), () => {
-    const mine = db.stories[0]; mine.items.push({ id: uid(), src: URL.createObjectURL(file), ago: 'now' }); return mine;
+  // p = { file, caption, mentions, filter, transform, overlay:{strokes,items}, audio:{blob,name,artist,start}, audience:{id,ids} }
+  // Media is uploaded untouched; edits (filter / crop / drawing / text / stickers) travel as JSON so the viewer renders them at any size.
+  createStory: (p) => call(() => {
+    const f = form({ media: p.file, caption: p.caption, audio: p.audio?.blob, meta: JSON.stringify({ mentions: p.mentions, filter: p.filter, transform: p.transform, overlay: p.overlay, audience: p.audience, audioMeta: p.audio && { name: p.audio.name, artist: p.audio.artist, start: p.audio.start } }) });
+    return http.post('/stories', f, multipart);
+  }, () => {
+    const mine = db.stories[0];
+    const it = { id: uid(), src: URL.createObjectURL(p.file), type: p.file.type.startsWith('video') ? 'video' : 'image', ago: 'now', caption: p.caption, mentions: p.mentions, filter: p.filter, transform: p.transform, overlay: p.overlay,
+      audio: p.audio ? { src: p.audio.src, name: p.audio.name, artist: p.audio.artist, start: p.audio.start } : null, audience: p.audience };
+    mine.items.push(it); db.storyViewers[it.id] = []; return mine;
   }),
-  reactStory: (id, emoji) => call(() => http.post(`/stories/${id}/react`, { emoji }), () => ({ ok: true })),
-  replyStory: (id, text) => call(() => http.post(`/stories/${id}/reply`, { text }), () => ({ ok: true })),
+  // the server stores the reaction/reply AND drops a message into the conversation with the story's owner
+  reactStory: (id, emoji) => call(() => http.post(`/stories/${id}/react`, { emoji }), () => {
+    const f = findStoryItem(id); if (!f) return { ok: true };
+    pushStoryMsg({ userId: f.story.userId, name: f.story.name.replace(/\s*🎤/, ''), avatar: f.story.avatar, from: 'me', kind: 'reaction', emoji, item: f.item, owner: 'theirs' });
+    return { ok: true };
+  }),
+  unreactStory: (id) => call(() => http.delete(`/stories/${id}/react`), () => ({ ok: true })),
+  replyStory: (id, text) => call(() => http.post(`/stories/${id}/reply`, { text }), () => {
+    const f = findStoryItem(id); if (!f) return { ok: true };
+    pushStoryMsg({ userId: f.story.userId, name: f.story.name.replace(/\s*🎤/, ''), avatar: f.story.avatar, from: 'me', kind: 'reply', text, item: f.item, owner: 'theirs' });
+    return { ok: true };
+  }),
+  // who saw / liked / replied to one of my story items
+  storyViewers: (id) => call(() => http.get(`/stories/${id}/viewers`), () => (db.storyViewers[id] || []).map((v) => ({ ...v, chatId: chatFor(v.userId, v).id })).sort((a, b) => Number(b.liked) - Number(a.liked))),
   // couple
   couple: () => call(() => http.get('/couple'), () => db.couple),
   invitePartner: (b) => call(() => http.post('/couple/invite', b), () => ({ sent: true })),

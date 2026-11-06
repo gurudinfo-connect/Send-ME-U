@@ -116,3 +116,15 @@ export const notifications = [
   { id: 'n2', text: 'Rahul sent you a photo', ago: '1h' },
   { id: 'n3', text: 'Anniversary in 12 days ❤️', ago: '1d' },
 ];
+
+// Who has seen / liked / replied to my story items (keyed by story item id).
+// `liked` and `reply` are also mirrored into that person's chat (see api.js seedStoryChats).
+export const storyViewers = {
+  m0: [
+    { userId: 'u1', name: 'Priya Sharma', avatar: A('tl-priya'), liked: true, reaction: '❤️', reply: 'Wow, what a view! 😍', ago: '12m ago' },
+    { userId: 'u2', name: 'Rahul Verma', avatar: A('tl-rahul'), liked: true, reaction: '🔥', reply: null, ago: '25m ago' },
+    { userId: 'u3', name: 'Anu Reddy', avatar: A('tl-anu'), liked: false, reaction: null, reply: 'Where is this place? 📍', ago: '40m ago' },
+    { userId: 'u4', name: 'Muthu Kumar', avatar: A('tl-muthu'), liked: true, reaction: '❤️', reply: null, ago: '48m ago' },
+    { userId: 'u5', name: 'Karthik', avatar: A('tl-karthik'), liked: false, reaction: null, reply: null, ago: '55m ago' },
+  ],
+};
