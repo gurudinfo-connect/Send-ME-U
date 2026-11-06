@@ -16,14 +16,21 @@ export const filterCss = (id) => FILTERS.find((f) => f.id === id)?.css || 'none'
 // media (photo or video) with filter + rotate / flip / zoom / pan applied
 export function StoryMedia({ item, muted = true, alt = '' }) {
   const t = item.transform || {}; const odd = (t.rot || 0) % 180 !== 0;
+  // 'contain' shows the WHOLE picture (any aspect ratio) over a blurred copy; 'cover' fills the screen and crops. Older items default to cover.
+  const fit = t.fit || 'cover';
   const style = {
-    filter: filterCss(item.filter), position: 'absolute', left: '50%', top: '50%', objectFit: 'cover', maxWidth: 'none',
+    filter: filterCss(item.filter), position: 'absolute', left: '50%', top: '50%', objectFit: fit, maxWidth: 'none',
     width: odd ? '100cqh' : '100cqw', height: odd ? '100cqw' : '100cqh',
     transform: `translate(-50%,-50%) translate(${t.x || 0}%,${t.y || 0}%) rotate(${t.rot || 0}deg) scale(${t.flip ? -1 : 1},1) scale(${t.zoom || 1})`,
   };
+  const bg = { filter: `${filterCss(item.filter) === 'none' ? '' : `${filterCss(item.filter)} `}blur(28px) brightness(.62)`, transform: 'scale(1.25)' };
+  const video = item.type === 'video';
   return (
     <div className="sm-wrap">
-      {item.type === 'video'
+      {fit === 'contain' && (video
+        ? <video className="sm-bg" src={item.src} style={bg} autoPlay loop playsInline muted />
+        : <img className="sm-bg" src={item.src} alt="" style={bg} draggable={false} />)}
+      {video
         ? <video src={item.src} style={style} autoPlay loop playsInline muted={muted} />
         : <img src={item.src} alt={alt} style={style} draggable={false} />}
     </div>

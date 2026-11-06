@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AtSign, Check, ChevronUp, Crop, FlipHorizontal, ImagePlus, Mic, Music, Pause, Pencil, Play, RotateCw, Send, Smile, Sparkles, Square, Trash2, Type, Undo2, Upload, Users, X, Globe2 } from 'lucide-react';
+import { Maximize2, Minimize2, AtSign, Check, ChevronUp, Crop, FlipHorizontal, ImagePlus, Mic, Music, Pause, Pencil, Play, RotateCw, Send, Smile, Sparkles, Square, Trash2, Type, Undo2, Upload, Users, X, Globe2 } from 'lucide-react';
 import { Avatar, useAsync } from '../components/ui';
 import { api, errMsg } from '../services/api';
 import { useUI } from '../store';
@@ -34,7 +34,7 @@ export function StoryCreate() {
   const [tool, setTool] = useState(null); // text | sticker | draw | crop | music | filters | mention | audience
   const [caption, setCaption] = useState(''); const [mentions, setMentions] = useState([]);
   const [filter, setFilter] = useState('none');
-  const [tr, setTr] = useState({ rot: 0, flip: false, zoom: 1, x: 0, y: 0 });
+  const [tr, setTr] = useState({ rot: 0, flip: false, zoom: 1, x: 0, y: 0, fit: 'contain' });
   const [items, setItems] = useState([]); const [strokes, setStrokes] = useState([]);
   const [audio, setAudio] = useState(null); // { src, name, start, blob? }
   const [audience, setAudience] = useState({ id: 'contacts', ids: [] });
@@ -44,7 +44,7 @@ export function StoryCreate() {
   useEffect(() => () => url && URL.revokeObjectURL(url), [url]);
   const choose = (e) => {
     const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
-    setFile(f); setUrl(URL.createObjectURL(f)); setFilter('none'); setTr({ rot: 0, flip: false, zoom: 1, x: 0, y: 0 });
+    setFile(f); setUrl(URL.createObjectURL(f)); setFilter('none'); setTr({ rot: 0, flip: false, zoom: 1, x: 0, y: 0, fit: 'contain' });
   };
   const item = useMemo(() => ({ src: url, type: file?.type.startsWith('video') ? 'video' : 'image', filter, transform: tr }), [url, file, filter, tr]);
 
@@ -194,7 +194,7 @@ export function StoryCreate() {
           <button className="se-ib" aria-label="Close" onClick={close}><X size={22} /></button>
           <div className="se-tools">
             <button className={`se-ib ${audio ? 'on' : ''}`} aria-label="Add music" onClick={() => setTool('music')}><Music size={21} /></button>
-            <button className={`se-ib ${tr.rot || tr.flip || tr.zoom > 1 ? 'on' : ''}`} aria-label="Crop and rotate" onClick={() => setTool('crop')}><Crop size={21} /></button>
+            <button className={`se-ib ${tr.rot || tr.flip || tr.zoom > 1 || tr.fit === 'cover' ? 'on' : ''}`} aria-label="Crop and rotate" onClick={() => setTool('crop')}><Crop size={21} /></button>
             <button className="se-ib" aria-label="Add sticker" onClick={() => setTool('sticker')}><Smile size={21} /></button>
             <button className="se-ib" aria-label="Add text" onClick={() => openText()}><Type size={21} /></button>
             <button className={`se-ib ${strokes.length ? 'on' : ''}`} aria-label="Draw" onClick={() => setTool('draw')}><Pencil size={21} /></button>
@@ -266,11 +266,12 @@ export function StoryCreate() {
       {/* ============ crop / rotate ============ */}
       {tool === 'crop' && (
         <>
-          <div className="se-text-top over"><button className="se-ib" aria-label="Reset" onClick={() => setTr({ rot: 0, flip: false, zoom: 1, x: 0, y: 0 })}><Undo2 size={21} /></button><span className="se-hint">Drag to reposition</span><button className="se-done" onClick={() => setTool(null)}>Done</button></div>
+          <div className="se-text-top over"><button className="se-ib" aria-label="Reset" onClick={() => setTr({ rot: 0, flip: false, zoom: 1, x: 0, y: 0, fit: 'contain' })}><Undo2 size={21} /></button><span className="se-hint">Drag to reposition</span><button className="se-done" onClick={() => setTool(null)}>Done</button></div>
           <div className="se-draw-bar">
             <div className="se-crop-row">
               <button className="se-pill" onClick={() => setTr((t) => ({ ...t, rot: (t.rot + 90) % 360 }))}><RotateCw size={18} /> Rotate</button>
               <button className="se-pill" onClick={() => setTr((t) => ({ ...t, flip: !t.flip }))}><FlipHorizontal size={18} /> Flip</button>
+              <button className="se-pill" onClick={() => setTr((t) => ({ ...t, fit: t.fit === 'cover' ? 'contain' : 'cover', x: 0, y: 0 }))}>{tr.fit === 'cover' ? <Minimize2 size={18} /> : <Maximize2 size={18} />} {tr.fit === 'cover' ? 'Fit' : 'Fill'}</button>
             </div>
             <input className="se-range" type="range" min="1" max="3" step=".01" value={tr.zoom} aria-label="Zoom" onChange={(e) => { const z = +e.target.value, lim = (z - 1) * 50; setTr((t) => ({ ...t, zoom: z, x: clamp(t.x, -lim, lim), y: clamp(t.y, -lim, lim) })); }} />
           </div>
