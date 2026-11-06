@@ -25,7 +25,7 @@ export const conversations = [
 
 // Daily: story cards (avatar ring + backdrop) — `items` feed the story viewer
 export const stories = [
-  { id: 's0', userId: 'u0', name: 'My Story', avatar: A('me', 'svg'), seen: false, mine: true, cover: A('mystory', 'jpg'), items: [{ id: 'm0', src: sceneArt('lake'), ago: '1h ago' }] },
+  { id: 's0', userId: 'u0', name: 'My Story', avatar: A('me', 'svg'), seen: false, mine: true, cover: A('mystory', 'jpg'), items: [{ id: 'm0', seed: true, src: sceneArt('lake'), ago: '1h ago' }] },
   { id: 's1', userId: 'u7', name: 'Aanya 🎤', avatar: A('st-singer'), bg: A('stbg-singer', 'jpg'), items: [{ id: 'm1', src: sceneArt('sunset'), ago: '2h ago' }, { id: 'm2', src: sceneArt('mountain'), ago: '1h ago' }] },
   { id: 's2', userId: 'u8', name: 'Vikram', avatar: A('st-vinay'), bg: A('stbg-vinay', 'jpg'), items: [{ id: 'm3', src: sceneArt('lake'), ago: '3h ago' }] },
   { id: 's3', userId: 'u9', name: 'Chetan', avatar: A('st-chenna'), bg: A('stbg-chenna', 'jpg'), items: [{ id: 'm4', src: sceneArt('city'), ago: '5h ago' }] },

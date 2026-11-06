@@ -1732,3 +1732,11 @@ b, strong, th { font-weight: 400; }
 }
 @media (max-height: 420px) { .se-restyle { display: none; } .se-sheet { max-height: 92%; } }
 .se-sheet, .se-text, .se-draw-bar { box-sizing: border-box; max-width: 100%; }
+
+/* Daily: My Story card shows the story you posted; + stays in the corner to add more */
+div.my-story { cursor: pointer; }
+.my-story .ms-thumb { position: absolute; left: 0; top: 0; height: 100%; width: 56%; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, #000 55%, transparent); mask-image: linear-gradient(90deg, #000 55%, transparent); }
+.my-story .ms-thumb img, .my-story .ms-thumb video { -webkit-mask-image: none; mask-image: none; }
+.my-story.has { border-color: #ff8a00; box-shadow: 0 12px 26px rgba(255, 138, 0, .28), 0 0 0 2px rgba(255, 138, 0, .55); }
+.my-story .plus { cursor: pointer; }
+.my-story:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }

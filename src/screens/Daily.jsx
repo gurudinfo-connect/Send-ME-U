@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Camera, Pencil, ArrowRight, Image as Img, Link2, CircleHelp, Search } from 'lucide-react';
+import { Plus, Eye, Camera, Pencil, ArrowRight, Image as Img, Link2, CircleHelp, Search } from 'lucide-react';
 import { BrandBar, DropMenu, PageTitle, ListSkeleton, ErrorState, useAsync } from '../components/ui';
 import { api } from '../services/api';
 import { useUI } from '../store';
+import { StoryMedia } from '../stories/StoryMedia';
 
 const PV = { image: Img, link: Link2, poll: CircleHelp };
 
@@ -29,11 +30,27 @@ export default function Daily() {
       <div className="scroll" style={{ padding: '0 0 120px' }}>
         <PageTitle title="Daily" sub="Stories & Updates from your connections" />
 
-        <button className="my-story" onClick={() => nav('/stories/new')} aria-label="Add to My Story">
-          {mine?.cover && <img src={mine.cover} alt="" />}
-          <span className="txt"><b>My Story</b><span>Add a story, share a moment with your connections</span></span>
-          <span className="plus"><Plus size={30} /></span>
-        </button>
+        {(() => {
+          // my own uploaded stories (the built-in demo item doesn't count)
+          const own = (mine?.items || []).filter((i) => !i.seed);
+          const latest = own[own.length - 1];
+          const open = () => nav(latest ? '/stories?u=s0&new=1' : '/stories/new');
+          return (
+            <div className={`my-story ${latest ? 'has' : ''}`} role="button" tabIndex={0} onClick={open} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open())}
+              aria-label={latest ? 'View my story' : 'Add to My Story'}>
+              {latest
+                ? <span className="ms-thumb"><StoryMedia item={latest} /></span>
+                : mine?.cover && <img src={mine.cover} alt="" />}
+              <span className="txt">
+                <b>My Story</b>
+                {latest
+                  ? <span><Eye size={13} style={{ verticalAlign: '-2px' }} /> {own.length} {own.length === 1 ? 'update' : 'updates'} · {latest.ago}<br />Tap to view</span>
+                  : <span>Add a story, share a moment with your connections</span>}
+              </span>
+              <button className="plus" aria-label="Add to my story" onClick={(e) => { e.stopPropagation(); nav('/stories/new'); }}><Plus size={30} /></button>
+            </div>
+          );
+        })()}
 
         <div className="dstories" aria-label="Stories">
           {stories.loading && <ListSkeleton n={1} />}
