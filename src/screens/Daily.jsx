@@ -39,7 +39,10 @@ export default function Daily() {
             <div className={`my-story ${latest ? 'has' : ''}`} role="button" tabIndex={0} onClick={open} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), open())}
               aria-label={latest ? 'View my story' : 'Add to My Story'}>
               {latest
-                ? <span className="ms-thumb"><StoryMedia item={{ ...latest, transform: { rot: latest.transform?.rot || 0, flip: latest.transform?.flip, fit: 'contain' } }} /></span>
+                ? <>
+                    <span className="ms-fill" aria-hidden><StoryMedia item={{ ...latest, transform: { rot: latest.transform?.rot || 0, flip: latest.transform?.flip, fit: 'cover' } }} /></span>
+                    <span className="ms-thumb"><StoryMedia item={{ ...latest, transform: { rot: latest.transform?.rot || 0, flip: latest.transform?.flip, fit: 'contain' } }} /></span>
+                  </>
                 : mine?.cover && <img src={mine.cover} alt="" />}
               <span className="txt">
                 <b>My Story</b>
