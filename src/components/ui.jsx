@@ -292,6 +292,7 @@ export function ProfilePreview({ contact, from, onClose }) {
   const notify = useUI((s) => s.notify);
   const [broken, setBroken] = useState(false);
   const [geo, setGeo] = useState(null);
+  const [big, setBig] = useState(false); // second zoom: the photo inside the opened card grows to full width
   const root = useRef(null);
   const card = useRef(null);
   const closing = useRef(false);
@@ -307,7 +308,12 @@ export function ProfilePreview({ contact, from, onClose }) {
     let w = r.width * 0.66;
     if (w * PZ_RATIO > r.height - 24) w = (r.height - 24) / PZ_RATIO;
     const h = w * PZ_RATIO;
-    setGeo({ w, top: Math.max(12, Math.min(r.height * 0.2048, r.height - h - 12)) });
+    // big size: the full width of the screen (or as wide as the height allows), centred vertically
+    let bw = r.width;
+    if (bw * PZ_RATIO > r.height - 24) bw = (r.height - 24) / PZ_RATIO;
+    const bh = bw * PZ_RATIO;
+    setBig(false);
+    setGeo({ w, top: Math.max(12, Math.min(r.height * 0.2048, r.height - h - 12)), bw, btop: Math.max(12, (r.height - bh) / 2) });
   }, [contact?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // the card travels between the avatar's rectangle and its resting place (and the avatar's circle -> square corners)
@@ -338,7 +344,7 @@ export function ProfilePreview({ contact, from, onClose }) {
     const done = () => { onClose(); after?.(); };
     if (reduce) { done(); return; }
     const o = origin();
-    root.current.animate([{ background: 'rgba(0,0,0,.43)' }, { background: 'rgba(0,0,0,0)' }], { duration: 220, easing: 'ease-in', fill: 'forwards' });
+    root.current.animate([{ background: big ? 'rgba(0,0,0,.88)' : 'rgba(0,0,0,.43)' }, { background: 'rgba(0,0,0,0)' }], { duration: 220, easing: 'ease-in', fill: 'forwards' });
     const a = card.current?.animate(o ? [{ transform: 'none', borderRadius: '0px' }, { transform: o.t, borderRadius: o.r }] : [{ transform: 'none', opacity: 1 }, { transform: 'scale(.6)', opacity: 0 }], { duration: 220, easing: 'cubic-bezier(.4,0,.8,.4)', fill: 'forwards' });
     if (a) a.onfinish = done; else done();
     setTimeout(() => { if (closing.current && root.current) done(); }, 400); // safety net
@@ -346,7 +352,7 @@ export function ProfilePreview({ contact, from, onClose }) {
   useEffect(() => {
     if (!contact) return undefined;
     const onKey = (e) => {
-      if (e.key === 'Escape') { e.stopPropagation(); close(); return; }
+      if (e.key === 'Escape') { e.stopPropagation(); if (big) setBig(false); else close(); return; }
       if (e.key !== 'Tab' || !card.current) return;
       const f = [...card.current.querySelectorAll('button')];
       const i = f.indexOf(document.activeElement);
@@ -369,13 +375,13 @@ export function ProfilePreview({ contact, from, onClose }) {
     ['Info', Info, () => close(() => nav(`/chats/${contact.id}/info`))],
   ];
   return createPortal(
-    <div className="pz-scrim" ref={root} onClick={(e) => { e.stopPropagation(); close(); }}>
+    <div className={`pz-scrim ${big ? 'big' : ''}`} ref={root} onClick={(e) => { e.stopPropagation(); close(); }}>
       <div className="pz-card" role="dialog" aria-modal="true" aria-label={`${name} profile picture`} ref={card} onClick={(e) => e.stopPropagation()}
-        style={geo ? { width: geo.w, top: geo.top, marginLeft: -geo.w / 2 } : { visibility: 'hidden' }}>
-        <div className="pz-photo">
+        style={geo ? (big ? { width: geo.bw, top: geo.btop, marginLeft: -geo.bw / 2 } : { width: geo.w, top: geo.top, marginLeft: -geo.w / 2 }) : { visibility: 'hidden' }}>
+        <button type="button" className="pz-photo" aria-label={big ? 'Make profile picture smaller' : 'Make profile picture bigger'} aria-pressed={big} onClick={() => setBig((v) => !v)}>
           {avatar && !broken ? <img src={avatar} alt={`${name} profile picture`} draggable={false} onError={() => setBroken(true)} /> : <span className="pz-initials" role="img" aria-label={`${name} (no profile picture)`}>{initials}</span>}
           <b className="pz-name">{name}</b>
-        </div>
+        </button>
         <div className="pz-actions">
           {actions.map(([label, Icon, fn]) => <button key={label} className="pz-act" aria-label={label} onClick={fn}><Icon strokeWidth={2} /></button>)}
         </div>

@@ -1465,9 +1465,15 @@ b, strong, th { font-weight: 400; }
 .head-open .head-av:focus-visible, .head-open .head-name:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 12px; }
 .head-open .head-name { flex: 1; min-width: 0; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: inherit; font: inherit; }
 
-.pz-scrim { position: absolute; inset: 0; z-index: 90; background: rgba(0, 0, 0, .43); }
-.pz-card { position: absolute; left: 50%; container-type: inline-size; background: #0b0e15; overflow: hidden; border-radius: 0; will-change: transform; }
-.pz-photo { position: relative; width: 100%; aspect-ratio: 1 / 1; background: #37182a; overflow: hidden; display: grid; place-items: center; }
+.pz-scrim { position: absolute; inset: 0; z-index: 90; background: rgba(0, 0, 0, .43); transition: background .3s ease; }
+.pz-scrim.big { background: rgba(0, 0, 0, .88); }
+.pz-card { position: absolute; left: 50%; container-type: inline-size; background: #0b0e15; overflow: hidden; border-radius: 0; will-change: transform; transition: width .32s cubic-bezier(.2, .8, .2, 1), top .32s cubic-bezier(.2, .8, .2, 1), margin-left .32s cubic-bezier(.2, .8, .2, 1); }
+@media (prefers-reduced-motion: reduce) { .pz-card, .pz-scrim { transition: none; } }
+.pz-photo { position: relative; width: 100%; aspect-ratio: 1 / 1; background: #37182a; overflow: hidden; display: grid; place-items: center; border: 0; padding: 0; cursor: zoom-in; -webkit-tap-highlight-color: transparent; }
+.pz-scrim.big .pz-photo { cursor: zoom-out; }
+.pz-photo:focus-visible { outline: 2px solid #0fc56a; outline-offset: -3px; }
+.pz-photo img { transition: transform .32s cubic-bezier(.2, .8, .2, 1); }
+.pz-scrim.big .pz-photo img { transform: scale(1.04); }
 .pz-photo img { width: 100%; height: 100%; object-fit: cover; display: block; user-select: none; -webkit-user-drag: none; }
 .pz-initials { font-size: 38cqw; color: #ff6fa5; }
 .pz-name { position: absolute; left: 0; right: 0; top: 0; height: 13.2cqw; display: flex; align-items: center; padding: 0 3.2cqw; background: rgba(0, 0, 0, .25); color: #fff; font-size: 6.2cqw; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
