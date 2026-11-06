@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate, useLocation, useNavigationType } from 'react-router-dom';
-import { ArrowLeft, MessageSquareText, Users, Phone, X, Inbox, AlertTriangle, Eye, EyeOff, Search, Bell, MoreVertical, ChevronRight } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ArrowLeft, MessageSquareText, Users, Phone, Video, Info, X, Inbox, AlertTriangle, Eye, EyeOff, Search, Bell, MoreVertical, ChevronRight } from 'lucide-react';
 import { useUI, useAuth } from '../store';
-import { api } from '../services/api';
+import { api, errMsg } from '../services/api';
 import { logoIcon } from '../data/art';
 
 // Brand: the bubble + paper-plane mark, plus a live-text wordmark so it stays legible on light AND dark screens.
@@ -278,5 +279,65 @@ export function GlassTabs({ items, value, onChange, label }) {
         </button>
       ))}
     </div>
+  );
+}
+
+// WhatsApp-style quick profile preview: tap an avatar -> centered card with a large photo, the name and
+// Message / Voice call / Video call / Info actions. Reuses existing routes and api.placeCall (same as the Calls tab).
+export function ProfilePreview({ contact, onClose }) {
+  const nav = useNavigate();
+  const notify = useUI((s) => s.notify);
+  const [closing, setClosing] = useState(false);
+  const [broken, setBroken] = useState(false);
+  const card = useRef(null);
+  const timer = useRef();
+  const close = (after) => {
+    if (closing) return;
+    setClosing(true);
+    timer.current = setTimeout(() => { setClosing(false); setBroken(false); onClose(); after?.(); }, 160);
+  };
+  useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(() => {
+    if (!contact) return undefined;
+    const prev = document.activeElement;
+    card.current?.querySelector('button')?.focus({ preventScroll: true });
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); close(); return; }
+      if (e.key !== 'Tab') return; // keep focus inside the dialog
+      const f = [...card.current.querySelectorAll('button')];
+      const i = f.indexOf(document.activeElement);
+      e.preventDefault();
+      f[(i + (e.shiftKey ? -1 : 1) + f.length) % f.length]?.focus();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('keydown', onKey); prev?.focus?.({ preventScroll: true }); };
+  }, [contact?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!contact) return null;
+  const { id, name = '', avatar } = contact;
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
+  const place = async (video) => {
+    close();
+    try { await api.placeCall({ name, avatar, fav: false, video }); notify(`${video ? 'Video calling' : 'Calling'} ${name}…`); }
+    catch (e) { notify(errMsg(e)); }
+  };
+  const actions = [
+    ['Message', MessageSquareText, () => close(() => nav(`/chats/${id}`))],
+    ['Voice call', Phone, () => place(false)],
+    ['Video call', Video, () => place(true)],
+    ['Info', Info, () => close(() => nav(`/chats/${id}/info`))],
+  ];
+  return createPortal(
+    <div className={`pp-overlay ${closing ? 'out' : ''}`} onClick={(e) => { e.stopPropagation(); close(); }}>
+      <div className="pp-card" role="dialog" aria-modal="true" aria-label={`${name} profile preview`} ref={card} onClick={(e) => e.stopPropagation()}>
+        <div className="pp-top"><b className="pp-name">{name}</b><button className="pp-x" aria-label="Close preview" onClick={() => close()}><X size={20} /></button></div>
+        <div className="pp-photo">
+          {avatar && !broken ? <img src={avatar} alt={`${name} profile picture`} onError={() => setBroken(true)} /> : <span className="pp-initials" aria-label={`${name} (no profile picture)`}>{initials}</span>}
+        </div>
+        <div className="pp-actions">
+          {actions.map(([label, Icon, fn]) => <button key={label} className="pp-act" aria-label={label} title={label} onClick={fn}><Icon size={24} /></button>)}
+        </div>
+      </div>
+    </div>,
+    document.querySelector('.device') || document.body,
   );
 }

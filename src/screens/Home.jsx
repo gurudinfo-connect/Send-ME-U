@@ -3,7 +3,7 @@ import { useNavigate, useNavigationType } from 'react-router-dom';
 
 let homeScroll = 0; // remembered so Back from Private Space etc. returns to the same spot in the chat list
 import { Search, X, Plus, ChevronRight, MessageSquareLock, BellOff, Camera } from 'lucide-react';
-import { BrandBar, DropMenu, GlassTabs, ListSkeleton, Empty, ErrorState, useAsync, BrandLogo } from '../components/ui';
+import { BrandBar, DropMenu, GlassTabs, ListSkeleton, Empty, ErrorState, useAsync, BrandLogo, ProfilePreview } from '../components/ui';
 import { api, USE_MOCK } from '../services/api';
 import { useUI, usePrivate, useChatPrefs, isMuted } from '../store';
 import { useStreaks } from '../streaks/hooks';
@@ -11,12 +11,16 @@ import { StreakBadge } from '../streaks/components';
 import { streakService } from '../services/streakService';
 import SnapSheet from '../streaks/SnapSheet';
 
-function ChatRow({ c, onClick, streak }) {
+function ChatRow({ c, onClick, onAvatar, streak }) {
   const recent = /^\d/.test(c.time);
   const muted = isMuted(useChatPrefs((s) => s.prefs[c.id]));
   return (
     <button className="chat-row" onClick={onClick}>
-      <img className="av" src={c.avatar} alt="" decoding="async" />
+      <span className="av-hit" role="button" tabIndex={0} aria-label={`View ${c.name} profile picture`}
+        onClick={(e) => { e.stopPropagation(); onAvatar(c); }}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onAvatar(c); } }}>
+        <img className="av" src={c.avatar} alt="" decoding="async" />
+      </span>
       <span className="meta">
         <span className="nm">{c.name}{c.heart && <span aria-label="heart">❤️</span>}{muted && <BellOff size={15} aria-label="Muted" style={{ opacity: .6 }} />}<StreakBadge s={streak} /></span>
         <span className="ls" style={{ display: 'block' }}>{c.last}</span>
@@ -44,6 +48,7 @@ export default function Home() {
   const convos = useAsync(() => api.conversations({ q }), [q]);
   const streaks = useStreaks();
   const [snap, setSnap] = useState(false);
+  const [pv, setPv] = useState(null); // contact whose profile preview is open
   const streakCount = streaks.items.filter((s) => s.count > 0).length;
   useEffect(() => { // in-app reminders (a real server sends these as pushes/socket events)
     if (!USE_MOCK) return undefined;
@@ -114,9 +119,10 @@ export default function Home() {
         {!convos.loading && !convos.error && list.length === 0 && <Empty title="Nothing here yet" text={q ? 'No results for your search.' : 'Start a conversation to see it here.'} />}
         <div key={filter} className="swap">
         {filter === 'streaks' && <button className="st-item" style={{ margin: '4px 18px 8px', width: 'calc(100% - 36px)' }} onClick={() => nav('/streaks')}><span className="grow"><b>Streak dashboard</b><small>Pending today, badges and recovery</small></span><ChevronRight size={18} /></button>}
-        {list.map((c) => <ChatRow key={c.id} c={c} streak={streaks.byId[c.id]} onClick={() => nav(c.type === 'couple' ? '/private/couple' : `/chats/${c.id}`)} />)}
+        {list.map((c) => <ChatRow key={c.id} c={c} onAvatar={setPv} streak={streaks.byId[c.id]} onClick={() => nav(c.type === 'couple' ? '/private/couple' : `/chats/${c.id}`)} />)}
         </div>
       </div>
+      <ProfilePreview contact={pv} onClose={() => setPv(null)} />
       <button className="snap-fab" aria-label="Send a streak photo" onClick={() => setSnap(true)}><Camera size={26} /></button>
       <SnapSheet open={snap} onClose={() => setSnap(false)} chats={all} streaks={streaks.byId} onSent={() => { streaks.reload(); convos.reload(); }} />
     </div>

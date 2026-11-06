@@ -1455,3 +1455,34 @@ b, strong, th { font-weight: 400; }
 .empty > b, .snap-gempty > b, .snap-confirm > div > b { font-weight: 700; }
 /* <b> inside the app-header page title: unchanged (it is the title) */
 .mp-title b { font-weight: bolder; }
+
+/* =====================================================================
+   PROFILE PREVIEW — tap an avatar for a quick WhatsApp-style card
+   ===================================================================== */
+.chat-row .av-hit { display: inline-flex; flex-shrink: 0; border-radius: 50%; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.chat-row .av-hit:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.head-open .head-av { background: none; border: 0; padding: 0; cursor: pointer; border-radius: 50%; display: inline-flex; flex-shrink: 0; }
+.head-open .head-av:focus-visible, .head-open .head-name:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 12px; }
+.head-open .head-name { flex: 1; min-width: 0; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: inherit; font: inherit; }
+
+.pp-overlay { position: absolute; inset: 0; z-index: 80; display: grid; place-items: center; padding: 20px; background: rgba(0, 0, 0, .72); animation: ppFade .18s ease-out both; }
+.pp-overlay.out { animation: ppFadeOut .16s ease-in both; }
+.pp-card { width: min(100%, 320px); max-height: 100%; display: flex; flex-direction: column; overflow: hidden; border-radius: 14px; background: #161618; color: #f4f4f5; box-shadow: 0 16px 48px rgba(0, 0, 0, .55); animation: ppIn .2s cubic-bezier(.22, 1, .36, 1) both; }
+.pp-overlay.out .pp-card { animation: ppOut .16s ease-in both; }
+.pp-top { display: flex; align-items: center; gap: 8px; padding: 10px 8px 10px 14px; background: rgba(0, 0, 0, .35); }
+.pp-name { flex: 1; min-width: 0; font-size: 18px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp-x { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: #f4f4f5; background: none; border: 0; cursor: pointer; flex-shrink: 0; }
+.pp-x:hover { background: rgba(255, 255, 255, .1); }
+.pp-photo { width: 100%; aspect-ratio: 1 / 1; max-height: 56dvh; background: #26262a; display: grid; place-items: center; overflow: hidden; }
+.pp-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pp-initials { font-size: 84px; font-weight: 400; color: #a3a3a8; letter-spacing: 2px; }
+.pp-actions { display: flex; justify-content: space-around; align-items: center; padding: 6px 4px; background: #161618; }
+.pp-act { width: 54px; height: 50px; border-radius: 12px; display: grid; place-items: center; color: var(--blue); background: none; border: 0; cursor: pointer; transition: background .15s, transform .15s; }
+.pp-act:hover { background: rgba(255, 255, 255, .08); }
+.pp-act:active { transform: scale(.92); }
+.pp-act:focus-visible, .pp-x:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+@keyframes ppFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ppFadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes ppIn { from { opacity: 0; transform: scale(.82); } to { opacity: 1; transform: scale(1); } }
+@keyframes ppOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(.92); } }
+@media (prefers-reduced-motion: reduce) { .pp-overlay, .pp-card { animation-duration: .01s !important; } }

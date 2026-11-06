@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Video, Phone, MoreVertical, Smile, Paperclip, Mic, Send, Play, Pause, Check, CheckCheck, Image as Img, Camera, MapPin, Trash2, X, Users, Search, Forward, Lock, ArrowLeft, Star, BellOff, ChevronUp, ChevronDown, Check as Tick } from 'lucide-react';
-import { AppHeader, Avatar, Modal, Button, ErrorState, Empty, ListSkeleton, fmtTime, useAsync, TextField, DropMenu, GlassTabs } from '../components/ui';
+import { AppHeader, Avatar, Modal, Button, ErrorState, Empty, ListSkeleton, fmtTime, useAsync, TextField, DropMenu, GlassTabs, ProfilePreview } from '../components/ui';
 import { api, errMsg } from '../services/api';
 import { getSocket, emitTyping, joinRoom, leaveRoom } from '../services/socket';
 import { useUI, useMenu, useChatPrefs, isMuted } from '../store';
@@ -99,6 +99,7 @@ export function Chat() {
   const [react, setReact] = useState(null);
   const [preview, setPreview] = useState(null);
   const [dd, setDd] = useState(false);
+  const [pv, setPv] = useState(false); // avatar profile preview
   const [sub, setSub] = useState('main');
   const [sp, setSp] = useSearchParams();
   const [sheet, setSheet] = useState(sp.get('media') === '1' ? 'media' : null); // contact | report | block | mute | theme | media | clear
@@ -261,15 +262,18 @@ export function Chat() {
   const linkMsgs = msgs.filter((m) => m.type === 'text' && (m.text.match(URL_RE) || []).length);
   return (
     <div className="screen chat-bg" style={wall ? { background: theme === 'dark' ? wall.dark : wall.light } : undefined}>
+      {c && pv && <ProfilePreview contact={{ id, name: c.name, avatar: c.avatar }} onClose={() => setPv(false)} />}
       <header className="chat-head">
         <button className="icon-btn" aria-label="Back" onClick={() => nav(-1)}><ArrowLeft size={26} /></button>
-        <button className="head-open" aria-label={`Open ${c?.name || 'contact'} info`} onClick={() => c && nav(`/chats/${id}/info`)}>
-          {c && <span style={{ position: 'relative', display: 'inline-flex' }}><img src={c.avatar} alt="" style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }} />{c.online && <i className="dot-online" style={{ width: 14, height: 14, right: 0, bottom: 2 }} />}</span>}
-          <div className="who">
-            <b>{c?.name}{c?.heart && ' ❤️'}{muted && <BellOff size={14} aria-label="Muted" style={{ marginLeft: 6, opacity: .7 }} />}</b>
-            <small style={typing ? { color: '#1236c9' } : undefined}>{typing ? 'typing…' : c?.type === 'group' ? 'Group · tap for info' : c?.online ? 'Online' : 'Last seen recently'}</small>
-          </div>
-        </button>
+        <div className="head-open" role="group" aria-label={`${c?.name || 'contact'} header`}>
+          {c && <button className="head-av" aria-label={`View ${c.name} profile picture`} onClick={() => setPv(true)}><span style={{ position: 'relative', display: 'inline-flex' }}><img src={c.avatar} alt="" style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }} />{c.online && <i className="dot-online" style={{ width: 14, height: 14, right: 0, bottom: 2 }} />}</span></button>}
+          <button className="head-name" aria-label={`Open ${c?.name || 'contact'} info`} onClick={() => c && nav(`/chats/${id}/info`)}>
+            <div className="who">
+              <b>{c?.name}{c?.heart && ' ❤️'}{muted && <BellOff size={14} aria-label="Muted" style={{ marginLeft: 6, opacity: .7 }} />}</b>
+              <small style={typing ? { color: '#1236c9' } : undefined}>{typing ? 'typing…' : c?.type === 'group' ? 'Group · tap for info' : c?.online ? 'Online' : 'Last seen recently'}</small>
+            </div>
+          </button>
+        </div>
         <button className="icon-btn" aria-label="Voice call" onClick={() => notify('Calling…')}><Phone size={26} /></button>
         <button className="icon-btn" aria-label="Video call" onClick={() => notify('Video calling…')}><Video size={28} /></button>
         <span className="more-wrap">
