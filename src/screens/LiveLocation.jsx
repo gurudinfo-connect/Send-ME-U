@@ -11,7 +11,7 @@ import { DURATION_LABELS, freshness, haversineKm, fmtDistance, ageLabel, timeLef
 import { ms } from '../couple/scheduling';
 
 // Also used as the Location page (/private/locations) with its own title, back target, header button and a taller map.
-export default function LiveLocation({ title = null, back = true, fallback = '/private/couple', headerRight = null, mapHeight = 300 }) {
+export default function LiveLocation({ title = null, back = true, fallback = '/private/couple', headerRight = null, mapHeight = 300, extraMarkers = [], onExtraMarker = null, children = null }) {
   const nav = useNavigate();
   const user = useAuth((s) => s.user);
   const notify = useUI((s) => s.notify);
@@ -60,8 +60,8 @@ export default function LiveLocation({ title = null, back = true, fallback = '/p
     if (meLoc) out.push({ id: 'me', lat: meLoc.latitude, lng: meLoc.longitude, avatar: user?.avatar, name: 'You', accuracy: meLoc.accuracy, live: myFresh === 'live', dim: myFresh === 'stale' });
     if (!meLoc && here) out.push({ id: 'here', lat: here.latitude, lng: here.longitude, avatar: user?.avatar, name: 'You', accuracy: here.accuracy, live: true, dim: false });
     if (partnerLoc) out.push({ id: 'partner', lat: partnerLoc.latitude, lng: partnerLoc.longitude, avatar: partner?.avatar, name: first, accuracy: partnerLoc.accuracy, live: partnerLoc.freshness === 'live', dim: partnerLoc.freshness === 'stale' });
-    return out;
-  }, [meLoc, partnerLoc, here, myFresh, user?.avatar, partner?.avatar, first]);
+    return [...out, ...extraMarkers];
+  }, [meLoc, partnerLoc, here, myFresh, user?.avatar, partner?.avatar, first, extraMarkers]);
 
   const begin = async (duration) => {
     setProblem('');
@@ -105,7 +105,7 @@ export default function LiveLocation({ title = null, back = true, fallback = '/p
 
         {couple.data && (!partner || st) && (
           <div className="ll-mapbox">
-            <SlippyMap markers={markers} selectedId={pickId} onMarker={(id) => id !== 'here' && setPickId(id)} height={mapHeight} />
+            <SlippyMap markers={markers} selectedId={pickId} onMarker={(id) => (String(id).startsWith('place:') ? onExtraMarker?.(id) : id !== 'here' && setPickId(id))} height={mapHeight} />
             {markers.length === 0 && <div className="ll-empty-map"><MapPin size={22} /><b>{partner ? 'No one is sharing right now' : 'Where are you?'}</b><small>{partner ? `Turn on sharing below, or ask ${first} to share.` : 'Tap "Show my location" to see yourself on the map.'}</small></div>}
             {sharing && <div className="ll-pill" role="status"><i className="ll-pulse" aria-hidden /> Sharing live · {timeLeftLabel(mySession.expires_at, t)}</div>}
           </div>
@@ -150,6 +150,7 @@ export default function LiveLocation({ title = null, back = true, fallback = '/p
 
           <p className="ll-privacy"><ShieldCheck size={15} /> You each choose whether to share. Sharing ends automatically, no location history is kept, and only your linked partner can ever see it.</p>
         </>)}
+        {children}
       </div>
 
       <Modal open={picker} onClose={() => !starting && setPicker(false)} title="Share for how long?">

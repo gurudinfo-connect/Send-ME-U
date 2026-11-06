@@ -4,7 +4,7 @@ import { Search, Share2, Pencil, Plus, ChevronDown, ArrowLeft, X, Camera, Image 
 import { Button, Modal } from '../components/ui';
 import { useAuth, useUI, useProfile, moodActive } from '../store';
 import { api, errMsg } from '../services/api';
-import { MENU, SPACES, buildIndex } from '../profile/registry';
+import { MENU, buildIndex } from '../profile/registry';
 
 const PRESETS = [['😊', 'Happy'], ['🥰', 'Feeling loved'], ['🎧', 'Vibing'], ['🔥', 'Focused'], ['😴', 'Sleepy'], ['🌧️', 'Need some space'], ['✈️', 'On the move'], ['🍿', 'Movie mode']];
 const FOR = [['1h', 'For 1 hour'], ['today', 'Today'], ['week', 'This week'], ['never', "Don't clear"]];
@@ -130,15 +130,6 @@ export function Profile() {
               })}
             </nav>
 
-            <div className="yh-div" />
-            <p className="yh-cap">Also in Send ME/U</p>
-            <div className="yh-also" role="list">
-              {SPACES.map((s, i) => { const I = s.icon; return (
-                <button key={s.id} role="listitem" className="yh-sp" style={{ '--i': i, '--c': s.c }} onClick={() => nav(s.to)}>
-                  <span><I size={24} /></span>{s.label}
-                </button>
-              ); })}
-            </div>
             <div className="yh-div" />
             <button className="yh-row out" onClick={() => setSheet('logout')}>
               <span className="yh-ic"><LogOut size={24} strokeWidth={1.9} /></span><span className="yh-t"><b>Log out</b></span>

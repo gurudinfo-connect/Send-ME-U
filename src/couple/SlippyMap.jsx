@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Plus, Minus, LocateFixed } from 'lucide-react';
+import { Plus, Minus, LocateFixed, MapPin } from 'lucide-react';
 import { visibleTiles, pointOnScreen, panBy, fitPoints, MIN_Z, MAX_Z } from './geo';
 
 // Small interactive map on OpenStreetMap raster tiles, no map library needed.
@@ -56,9 +56,9 @@ export default function SlippyMap({ markers, selectedId, onMarker, height = 320 
         return (
           <span key={m.id} className="ll-mk-wrap" style={{ left: p.x, top: p.y }}>
             {r > 16 && <i className={`ll-acc ${m.dim ? 'dim' : ''}`} style={{ width: r * 2, height: r * 2 }} aria-hidden />}
-            <button className={`ll-mk ${m.live ? 'live' : ''} ${m.dim ? 'dim' : ''} ${selectedId === m.id ? 'sel' : ''}`} aria-label={`${m.name}${m.dim ? ', last known location' : ''}. Show details`}
+            <button className={`ll-mk ${m.pin ? 'pin' : ''} ${m.live ? 'live' : ''} ${m.dim ? 'dim' : ''} ${selectedId === m.id ? 'sel' : ''}`} aria-label={`${m.name}${m.dim ? ', last known location' : ''}. Show details`}
               onPointerDown={(e) => e.stopPropagation()} onClick={() => onMarker?.(m.id)}>
-              <img src={m.avatar} alt="" draggable={false} />
+              {m.pin ? <MapPin size={20} aria-hidden /> : <img src={m.avatar} alt="" draggable={false} />}
             </button>
           </span>
         );

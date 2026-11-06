@@ -44,6 +44,10 @@ const db = {
   following: new Set(),
 };
 const uid = () => Math.random().toString(36).slice(2, 9);
+// saved places survive a page reload in demo mode
+const PLACES_KEY = 'smu.places';
+try { const saved = JSON.parse(localStorage.getItem(PLACES_KEY) || 'null'); if (Array.isArray(saved)) db.places = saved; } catch { /* ignore */ }
+const keepPlaces = () => { try { localStorage.setItem(PLACES_KEY, JSON.stringify(db.places)); } catch { /* ignore */ } };
 
 // Every call hits the REST API; with VITE_USE_MOCK=true it resolves from demo data.
 async function call(realFn, mockFn) {
@@ -174,8 +178,8 @@ export const api = {
   markAllRead: () => call(() => http.patch('/conversations/read-all'), () => { db.conversations.forEach((c) => { if (!c.locked && c.type !== 'couple') c.unread = 0; }); return { ok: true }; }),
   lockChat: (id, locked) => call(() => http.patch(`/conversations/${id}/lock`, { locked }), () => { const c = db.conversations.find((x) => x.id === id); if (c) c.locked = locked; return c; }),
   places: () => call(() => http.get('/places'), () => db.places),
-  addPlace: (b) => call(() => http.post('/places', b), () => { const l = { id: uid(), ...b }; db.places.push(l); return l; }),
-  deletePlace: (id) => call(() => http.delete(`/places/${id}`), () => { db.places = db.places.filter((l) => l.id !== id); return { ok: true }; }),
+  addPlace: (b) => call(() => http.post('/places', b), () => { const l = { id: uid(), ...b }; db.places.push(l); keepPlaces(); return l; }),
+  deletePlace: (id) => call(() => http.delete(`/places/${id}`), () => { db.places = db.places.filter((l) => l.id !== id); keepPlaces(); return { ok: true }; }),
   notifications: () => call(() => http.get('/notifications'), () => [...coupleService.notifications(), ...db.notifications]),
   albums: () => Promise.resolve(mock.albums),
 };

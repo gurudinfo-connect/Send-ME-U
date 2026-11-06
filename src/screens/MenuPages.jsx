@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Star, Trash2, Plus, Check, X, Smartphone, Monitor, Tablet, Users, Megaphone, Send, Pencil, ChevronRight, ArrowUpRight, ArrowDownLeft, Search, Info, LogOut } from 'lucide-react';
 import { AppHeader, Avatar, Button, Empty, ErrorState, ListSkeleton, Modal, TextField, useAsync, fmtTime } from '../components/ui';
@@ -263,6 +264,88 @@ export function Communities() {
   );
 }
 
+/* ---------- Community categories: drag & drop (tap works too) ---------- */
+const CATS = [
+  { id: 'singing', label: 'Singing', e: '🎤' }, { id: 'classical', label: 'Classical Dance', e: '💃' },
+  { id: 'drama', label: 'Drama', e: '🎭' }, { id: 'direction', label: 'Direction', e: '🎬' },
+  { id: 'action', label: 'Action', e: '🥊' }, { id: 'acting', label: 'Acting', e: '🎞️' },
+  { id: 'music', label: 'Music', e: '🎵' }, { id: 'dance', label: 'Dance', e: '🕺' },
+  { id: 'comedy', label: 'Comedy', e: '😂' }, { id: 'photo', label: 'Photography', e: '📸' },
+  { id: 'writing', label: 'Writing', e: '✍️' }, { id: 'art', label: 'Art', e: '🎨' },
+  { id: 'sports', label: 'Sports', e: '🏏' }, { id: 'gaming', label: 'Gaming', e: '🎮' },
+];
+const catOf = (id) => CATS.find((c) => c.id === id);
+
+function CategoryPicker({ value, onChange }) {
+  const [drag, setDrag] = useState(null); // { id, x, y, over }
+  const st = useRef(null);
+  const latest = useRef({ value, onChange });
+  latest.current = { value, onChange };
+  const zoneAt = (x, y) => document.elementFromPoint(x, y)?.closest?.('[data-cat-zone]')?.dataset.catZone || null;
+  const toggle = (id) => { const { value: v, onChange: f } = latest.current; f(v.includes(id) ? v.filter((x) => x !== id) : [...v, id]); };
+
+  const stop = () => {
+    const s = st.current; if (!s) return;
+    clearTimeout(s.timer);
+    window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onCancel); window.removeEventListener('touchmove', onTouchMove);
+    st.current = null; setDrag(null);
+  };
+  function onTouchMove(e) { if (st.current?.active) e.preventDefault(); }
+  function onMove(e) {
+    const s = st.current; if (!s) return;
+    if (!s.active) {
+      if (Math.hypot(e.clientX - s.sx, e.clientY - s.sy) <= 8) return;
+      if (s.touch) { stop(); return; } // finger moved before the hold: let the page scroll
+      s.active = true;
+    }
+    setDrag({ id: s.id, x: e.clientX, y: e.clientY, over: zoneAt(e.clientX, e.clientY) });
+  }
+  function onUp(e) {
+    const s = st.current; if (!s) return;
+    const { value: v, onChange: f } = latest.current;
+    if (s.active) {
+      const z = zoneAt(e.clientX, e.clientY);
+      if (z === 'in' && !v.includes(s.id)) f([...v, s.id]);
+      else if (z === 'out' && v.includes(s.id)) f(v.filter((x) => x !== s.id));
+    } else toggle(s.id);
+    stop();
+  }
+  function onCancel() { stop(); }
+  const down = (e, id) => {
+    if (e.button > 0 || st.current) return;
+    const s = { id, sx: e.clientX, sy: e.clientY, active: false, touch: e.pointerType === 'touch' || e.pointerType === 'pen' };
+    st.current = s;
+    if (s.touch) s.timer = setTimeout(() => { if (st.current === s) { s.active = true; navigator.vibrate?.(8); setDrag({ id, x: s.sx, y: s.sy, over: null }); } }, 200);
+    window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel); window.addEventListener('touchmove', onTouchMove, { passive: false });
+  };
+  useEffect(() => stop, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const chip = (c, on) => (
+    <button key={c.id} type="button" className={`cat-chip ${on ? 'on' : ''} ${drag?.id === c.id ? 'dragging' : ''}`}
+      aria-label={`${c.label}, ${on ? 'selected. Press to remove' : 'press to add'}`}
+      onPointerDown={(e) => down(e, c.id)} onClick={(e) => { if (e.detail === 0) toggle(c.id); }} onContextMenu={(e) => e.preventDefault()}>
+      <span aria-hidden>{c.e}</span>{c.label}{on && <X size={14} aria-hidden />}
+    </button>
+  );
+  const picked = value.map(catOf).filter(Boolean);
+  const rest = CATS.filter((c) => !value.includes(c.id));
+  const dragged = drag?.active !== false && drag ? catOf(drag.id) : null;
+  return (
+    <>
+      <p className="mp-label">Categories · {picked.length} selected</p>
+      <div className={`cat-zone ${drag?.over === 'in' ? 'over' : ''} ${picked.length ? 'filled' : ''}`} data-cat-zone="in" aria-label="Selected categories">
+        {picked.length === 0 ? <span className="cat-hint">Drag categories here</span> : picked.map((c) => chip(c, true))}
+      </div>
+      <div className={`cat-pool ${drag?.over === 'out' ? 'over' : ''}`} data-cat-zone="out" aria-label="Available categories">
+        {rest.length === 0 ? <span className="cat-hint">All categories added</span> : rest.map((c) => chip(c, false))}
+      </div>
+      {dragged && createPortal(<div className="cat-ghost" style={{ left: drag.x, top: drag.y }}><span aria-hidden>{dragged.e}</span>{dragged.label}</div>, document.body)}
+    </>
+  );
+}
+
 export function CommunityNew() {
   const nav = useNavigate();
   const notify = useUI((s) => s.notify);
@@ -274,10 +357,11 @@ export function CommunityNew() {
   const [emoji, setEmoji] = useState(EMOJIS[0]);
   const [color, setColor] = useState(COLORS[0]);
   const [sel, setSel] = useState([]);
+  const [cats, setCats] = useState([]);
   const create = () => {
     if (name.trim().length < 2) return notify('Give the community a name');
     const groups = chats.groups.filter((g) => sel.includes(g.id)).map((g) => ({ id: g.id, name: g.name, avatar: g.avatar }));
-    const c = addCommunity({ name: name.trim(), about: about.trim(), emoji, color, groups });
+    const c = addCommunity({ name: name.trim(), about: about.trim(), emoji, color, groups, categories: cats });
     notify('Community created');
     nav(`/communities/${c.id}`, { replace: true });
   };
@@ -293,6 +377,7 @@ export function CommunityNew() {
         <p className="mp-label">Add your groups · {sel.length} selected</p>
         {chats.loading && <ListSkeleton n={2} />}
         {!chats.loading && <PickList items={chats.groups} selected={sel} onToggle={(g) => setSel((s) => toggleIn(s, g.id))} empty="You are not in any groups yet. You can add them later." />}
+        <CategoryPicker value={cats} onChange={setCats} />
       </div>
       <div style={{ padding: '8px 16px calc(14px + var(--safe-bottom))' }}><Button disabled={name.trim().length < 2} onClick={create}>Create community</Button></div>
     </div>
@@ -320,7 +405,9 @@ export function CommunityView() {
     <div className="screen">
       <AppHeader back fallback="/communities" title={c.name} right={<button className="icon-btn" aria-label="Delete community" onClick={() => setSheet('delete')}><Trash2 size={21} /></button>} />
       <div className="scroll">
-        <div className="mp-hero"><CommIcon c={c} size={84} /><h2>{c.name}</h2>{c.about && <p className="muted">{c.about}</p>}<small className="muted">Created {dateOnly(c.createdAt)}</small></div>
+        <div className="mp-hero"><CommIcon c={c} size={84} /><h2>{c.name}</h2>{c.about && <p className="muted">{c.about}</p>}<small className="muted">Created {dateOnly(c.createdAt)}</small>
+          {(c.categories || []).length > 0 && <div className="cat-show">{c.categories.map(catOf).filter(Boolean).map((k) => <span key={k.id} className="cat-chip static"><span aria-hidden>{k.e}</span>{k.label}</span>)}</div>}
+        </div>
         <p className="mp-label">Groups · {c.groups.length}</p>
         {c.groups.length === 0 && <p className="muted" style={{ padding: '4px 4px 12px' }}>No groups yet. Add the groups that belong here.</p>}
         {c.groups.map((g) => (
