@@ -17,6 +17,7 @@ function ChatRow({ c, onClick, onAvatar, streak }) {
   return (
     <button className="chat-row" onClick={onClick}>
       <span className="av-hit" role="button" tabIndex={0} aria-label={`View ${c.name} profile picture`}
+        onPointerDown={(e) => { const r = e.currentTarget.closest('.chat-row'); r?.classList.add('av-press'); const off = () => { r?.classList.remove('av-press'); window.removeEventListener('pointerup', off); window.removeEventListener('pointercancel', off); }; window.addEventListener('pointerup', off); window.addEventListener('pointercancel', off); }}
         onClick={(e) => { e.stopPropagation(); onAvatar(c, e.currentTarget.querySelector('img').getBoundingClientRect()); }}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onAvatar(c, e.currentTarget.querySelector('img').getBoundingClientRect()); } }}>
         <img className="av" src={c.avatar} alt="" decoding="async" />

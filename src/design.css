@@ -1475,3 +1475,6 @@ b, strong, th { font-weight: 400; }
 .pz-act { flex: 1; display: grid; place-items: center; color: #0fc56a; background: none; border: 0; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .pz-act svg { width: 8cqw; height: 8cqw; }
 .pz-act:focus-visible { outline: 2px solid #0fc56a; outline-offset: -3px; }
+
+/* pressing the avatar must not trigger the whole row's pressed flash/shrink */
+.chat-row.av-press, .chat-row.av-press:active, .chat-row:has(.av-hit:active) { transform: none; background: transparent; }
