@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate, useLocation, useNavigationType } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, MessageSquareText, Users, Phone, Video, Info, X, Inbox, AlertTriangle, Eye, EyeOff, Search, Bell, MoreVertical, ChevronRight } from 'lucide-react';
+import { ArrowLeft, MessageSquareText, Users, Phone, X, Inbox, AlertTriangle, Eye, EyeOff, Search, Bell, MoreVertical, ChevronRight } from 'lucide-react';
 import { useUI, useAuth } from '../store';
-import { api, errMsg } from '../services/api';
+import { api } from '../services/api';
 import { logoIcon } from '../data/art';
 
 // Brand: the bubble + paper-plane mark, plus a live-text wordmark so it stays legible on light AND dark screens.
@@ -282,59 +282,66 @@ export function GlassTabs({ items, value, onChange, label }) {
   );
 }
 
-// WhatsApp-style quick profile preview: tap an avatar -> centered card with a large photo, the name and
-// Message / Voice call / Video call / Info actions. Reuses existing routes and api.placeCall (same as the Calls tab).
-export function ProfilePreview({ contact, onClose }) {
-  const nav = useNavigate();
-  const notify = useUI((s) => s.notify);
-  const [closing, setClosing] = useState(false);
+// WhatsApp-style profile photo viewer: tap an avatar -> the picture alone grows out of the avatar to fill a black screen
+// (no chat behind it). Back arrow / Escape / tapping the black area shrinks it back into the avatar.
+export function ProfilePreview({ contact, from, onClose }) {
   const [broken, setBroken] = useState(false);
-  const card = useRef(null);
-  const timer = useRef();
-  const close = (after) => {
-    if (closing) return;
-    setClosing(true);
-    timer.current = setTimeout(() => { setClosing(false); setBroken(false); onClose(); after?.(); }, 160);
+  const root = useRef(null);
+  const pic = useRef(null);
+  const closing = useRef(false);
+  const name = contact?.name || '';
+  const avatar = contact?.avatar;
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
+  const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // transform that makes the enlarged picture look exactly like the small avatar it came from
+  const fromAvatar = () => {
+    const el = pic.current;
+    if (!el || !from || !from.width) return null;
+    const to = el.getBoundingClientRect();
+    if (!to.width) return null;
+    const k = from.width / to.width;
+    return `translate(${from.left + from.width / 2 - (to.left + to.width / 2)}px, ${from.top + from.height / 2 - (to.top + to.height / 2)}px) scale(${k})`;
   };
-  useEffect(() => () => clearTimeout(timer.current), []);
   useEffect(() => {
     if (!contact) return undefined;
+    closing.current = false;
+    const t = fromAvatar();
+    if (!reduce) {
+      root.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'ease-out', fill: 'both' });
+      pic.current?.animate(t ? [{ transform: t, borderRadius: '50%' }, { transform: 'none', borderRadius: '0%' }] : [{ transform: 'scale(.8)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 260, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'both' });
+    }
     const prev = document.activeElement;
-    card.current?.querySelector('button')?.focus({ preventScroll: true });
-    const onKey = (e) => {
-      if (e.key === 'Escape') { e.stopPropagation(); close(); return; }
-      if (e.key !== 'Tab') return; // keep focus inside the dialog
-      const f = [...card.current.querySelectorAll('button')];
-      const i = f.indexOf(document.activeElement);
-      e.preventDefault();
-      f[(i + (e.shiftKey ? -1 : 1) + f.length) % f.length]?.focus();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('keydown', onKey); prev?.focus?.({ preventScroll: true }); };
+    root.current?.querySelector('button')?.focus({ preventScroll: true });
+    return () => prev?.focus?.({ preventScroll: true });
   }, [contact?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (!contact) return null;
-  const { id, name = '', avatar } = contact;
-  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
-  const place = async (video) => {
-    close();
-    try { await api.placeCall({ name, avatar, fav: false, video }); notify(`${video ? 'Video calling' : 'Calling'} ${name}…`); }
-    catch (e) { notify(errMsg(e)); }
+
+  const close = () => {
+    if (closing.current || !root.current) return;
+    closing.current = true;
+    if (reduce) { onClose(); return; }
+    const t = fromAvatar();
+    root.current.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200, easing: 'ease-in', fill: 'both' });
+    const a = pic.current?.animate(t ? [{ transform: 'none', borderRadius: '0%' }, { transform: t, borderRadius: '50%' }] : [{ transform: 'none', opacity: 1 }, { transform: 'scale(.9)', opacity: 0 }], { duration: 200, easing: 'ease-in', fill: 'both' });
+    if (a) a.onfinish = () => onClose(); else onClose();
+    setTimeout(() => { if (closing.current && root.current) onClose(); }, 350); // safety net if the animation never reports finish
   };
-  const actions = [
-    ['Message', MessageSquareText, () => close(() => nav(`/chats/${id}`))],
-    ['Voice call', Phone, () => place(false)],
-    ['Video call', Video, () => place(true)],
-    ['Info', Info, () => close(() => nav(`/chats/${id}/info`))],
-  ];
+  useEffect(() => {
+    if (!contact) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!contact) return null;
   return createPortal(
-    <div className={`pp-overlay ${closing ? 'out' : ''}`} onClick={(e) => { e.stopPropagation(); close(); }}>
-      <div className="pp-card" role="dialog" aria-modal="true" aria-label={`${name} profile preview`} ref={card} onClick={(e) => e.stopPropagation()}>
-        <div className="pp-top"><b className="pp-name">{name}</b><button className="pp-x" aria-label="Close preview" onClick={() => close()}><X size={20} /></button></div>
-        <div className="pp-photo">
-          {avatar && !broken ? <img src={avatar} alt={`${name} profile picture`} onError={() => setBroken(true)} /> : <span className="pp-initials" aria-label={`${name} (no profile picture)`}>{initials}</span>}
-        </div>
-        <div className="pp-actions">
-          {actions.map(([label, Icon, fn]) => <button key={label} className="pp-act" aria-label={label} title={label} onClick={fn}><Icon size={24} /></button>)}
+    <div className="pv-full" role="dialog" aria-modal="true" aria-label={`${name} profile picture`} ref={root} onClick={(e) => { e.stopPropagation(); close(); }}>
+      <div className="pv-bar" onClick={(e) => e.stopPropagation()}>
+        <button className="pv-back" aria-label="Back" onClick={close}><ArrowLeft size={24} /></button>
+        <b className="pv-name">{name}</b>
+      </div>
+      <div className="pv-stage">
+        <div className="pv-pic" ref={pic} onClick={(e) => e.stopPropagation()}>
+          {avatar && !broken ? <img src={avatar} alt={`${name} profile picture`} draggable={false} onError={() => setBroken(true)} /> : <span className="pv-initials" role="img" aria-label={`${name} (no profile picture)`}>{initials}</span>}
         </div>
       </div>
     </div>,

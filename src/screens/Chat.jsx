@@ -99,7 +99,7 @@ export function Chat() {
   const [react, setReact] = useState(null);
   const [preview, setPreview] = useState(null);
   const [dd, setDd] = useState(false);
-  const [pv, setPv] = useState(false); // avatar profile preview
+  const [pv, setPv] = useState(null); // rect of the tapped header avatar while the photo viewer is open
   const [sub, setSub] = useState('main');
   const [sp, setSp] = useSearchParams();
   const [sheet, setSheet] = useState(sp.get('media') === '1' ? 'media' : null); // contact | report | block | mute | theme | media | clear
@@ -262,11 +262,11 @@ export function Chat() {
   const linkMsgs = msgs.filter((m) => m.type === 'text' && (m.text.match(URL_RE) || []).length);
   return (
     <div className="screen chat-bg" style={wall ? { background: theme === 'dark' ? wall.dark : wall.light } : undefined}>
-      {c && pv && <ProfilePreview contact={{ id, name: c.name, avatar: c.avatar }} onClose={() => setPv(false)} />}
+      {c && pv && <ProfilePreview contact={{ id, name: c.name, avatar: c.avatar }} from={pv} onClose={() => setPv(null)} />}
       <header className="chat-head">
         <button className="icon-btn" aria-label="Back" onClick={() => nav(-1)}><ArrowLeft size={26} /></button>
         <div className="head-open" role="group" aria-label={`${c?.name || 'contact'} header`}>
-          {c && <button className="head-av" aria-label={`View ${c.name} profile picture`} onClick={() => setPv(true)}><span style={{ position: 'relative', display: 'inline-flex' }}><img src={c.avatar} alt="" style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }} />{c.online && <i className="dot-online" style={{ width: 14, height: 14, right: 0, bottom: 2 }} />}</span></button>}
+          {c && <button className="head-av" aria-label={`View ${c.name} profile picture`} onClick={(e) => setPv(e.currentTarget.querySelector('img').getBoundingClientRect())}><span style={{ position: 'relative', display: 'inline-flex' }}><img src={c.avatar} alt="" style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }} />{c.online && <i className="dot-online" style={{ width: 14, height: 14, right: 0, bottom: 2 }} />}</span></button>}
           <button className="head-name" aria-label={`Open ${c?.name || 'contact'} info`} onClick={() => c && nav(`/chats/${id}/info`)}>
             <div className="who">
               <b>{c?.name}{c?.heart && ' ❤️'}{muted && <BellOff size={14} aria-label="Muted" style={{ marginLeft: 6, opacity: .7 }} />}</b>

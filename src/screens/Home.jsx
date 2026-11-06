@@ -17,8 +17,8 @@ function ChatRow({ c, onClick, onAvatar, streak }) {
   return (
     <button className="chat-row" onClick={onClick}>
       <span className="av-hit" role="button" tabIndex={0} aria-label={`View ${c.name} profile picture`}
-        onClick={(e) => { e.stopPropagation(); onAvatar(c); }}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onAvatar(c); } }}>
+        onClick={(e) => { e.stopPropagation(); onAvatar(c, e.currentTarget.querySelector('img').getBoundingClientRect()); }}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onAvatar(c, e.currentTarget.querySelector('img').getBoundingClientRect()); } }}>
         <img className="av" src={c.avatar} alt="" decoding="async" />
       </span>
       <span className="meta">
@@ -119,10 +119,10 @@ export default function Home() {
         {!convos.loading && !convos.error && list.length === 0 && <Empty title="Nothing here yet" text={q ? 'No results for your search.' : 'Start a conversation to see it here.'} />}
         <div key={filter} className="swap">
         {filter === 'streaks' && <button className="st-item" style={{ margin: '4px 18px 8px', width: 'calc(100% - 36px)' }} onClick={() => nav('/streaks')}><span className="grow"><b>Streak dashboard</b><small>Pending today, badges and recovery</small></span><ChevronRight size={18} /></button>}
-        {list.map((c) => <ChatRow key={c.id} c={c} onAvatar={setPv} streak={streaks.byId[c.id]} onClick={() => nav(c.type === 'couple' ? '/private/couple' : `/chats/${c.id}`)} />)}
+        {list.map((c) => <ChatRow key={c.id} c={c} onAvatar={(ct, r) => setPv({ ...ct, rect: r })} streak={streaks.byId[c.id]} onClick={() => nav(c.type === 'couple' ? '/private/couple' : `/chats/${c.id}`)} />)}
         </div>
       </div>
-      <ProfilePreview contact={pv} onClose={() => setPv(null)} />
+      <ProfilePreview contact={pv} from={pv?.rect} onClose={() => setPv(null)} />
       <button className="snap-fab" aria-label="Send a streak photo" onClick={() => setSnap(true)}><Camera size={26} /></button>
       <SnapSheet open={snap} onClose={() => setSnap(false)} chats={all} streaks={streaks.byId} onSent={() => { streaks.reload(); convos.reload(); }} />
     </div>
