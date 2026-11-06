@@ -296,6 +296,8 @@ export function ProfilePreview({ contact, from, onClose }) {
   const root = useRef(null);
   const card = useRef(null);
   const closing = useRef(false);
+  const pushed = useRef(0);   // history entries this preview added: 1 = card open, 2 = photo zoomed bigger
+  const skipPop = useRef(false);
   const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const name = contact?.name || '';
   const avatar = contact?.avatar;
@@ -325,8 +327,10 @@ export function ProfilePreview({ contact, from, onClose }) {
     return { t: `translate(${from.left + from.width / 2 - (c.left + c.width / 2)}px, ${from.top + from.height / 2 - (c.top + c.height / 2)}px) scale(${from.width / c.width})`, r: `${c.width / 2}px` };
   };
   useEffect(() => {
-    if (!geo || reduce) return;
+    if (!geo) return;
     closing.current = false;
+    if (pushed.current === 0) { try { window.history.pushState({ ...(window.history.state || {}), pz: 1 }, ''); pushed.current = 1; } catch { /* ignore */ } }
+    if (reduce) return;
     const o = origin();
     root.current?.animate([{ background: 'rgba(0,0,0,0)' }, { background: 'rgba(0,0,0,.43)' }], { duration: 250, easing: 'ease-out' });
     card.current?.animate(o ? [{ transform: o.t, borderRadius: o.r }, { transform: 'none', borderRadius: '0px' }] : [{ transform: 'scale(.6)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 250, easing: 'cubic-bezier(.2,.8,.2,1)' });
@@ -341,7 +345,21 @@ export function ProfilePreview({ contact, from, onClose }) {
   const close = (after) => {
     if (closing.current || !root.current) return;
     closing.current = true;
-    const done = () => { onClose(); after?.(); };
+    let finished = false;
+    const done = () => {
+      if (finished) return;
+      finished = true;
+      const n = pushed.current;
+      const finish = () => { onClose(); after?.(); };
+      if (!n) { finish(); return; }
+      // remove the history entries this preview added, then carry on (so "after" navigates from the original page)
+      pushed.current = 0; skipPop.current = true;
+      let fired = false;
+      const h = () => { if (fired) return; fired = true; window.removeEventListener('popstate', h); skipPop.current = false; finish(); };
+      window.addEventListener('popstate', h);
+      window.history.go(-n);
+      setTimeout(h, 350);
+    };
     if (reduce) { done(); return; }
     const o = origin();
     root.current.animate([{ background: big ? 'rgba(0,0,0,.88)' : 'rgba(0,0,0,.43)' }, { background: 'rgba(0,0,0,0)' }], { duration: 220, easing: 'ease-in', fill: 'forwards' });
@@ -349,10 +367,23 @@ export function ProfilePreview({ contact, from, onClose }) {
     if (a) a.onfinish = done; else done();
     setTimeout(() => { if (closing.current && root.current) done(); }, 400); // safety net
   };
+  const grow = () => { try { window.history.pushState({ ...(window.history.state || {}), pz: 2 }, ''); pushed.current = 2; } catch { /* ignore */ } setBig(true); };
+  const shrink = () => { if (pushed.current === 2) window.history.back(); else setBig(false); };
+  // Back (browser / phone / swipe) steps out one level at a time: bigger photo -> card -> where the user came from
+  useEffect(() => {
+    if (!contact) return undefined;
+    const onPop = () => {
+      if (skipPop.current) return;
+      const lvl = window.history.state?.pz || 0;
+      if (lvl >= 1) { pushed.current = 1; setBig(false); } else { pushed.current = 0; close(); }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!contact) return undefined;
     const onKey = (e) => {
-      if (e.key === 'Escape') { e.stopPropagation(); if (big) setBig(false); else close(); return; }
+      if (e.key === 'Escape') { e.stopPropagation(); if (big) shrink(); else close(); return; }
       if (e.key !== 'Tab' || !card.current) return;
       const f = [...root.current.querySelectorAll('button')].filter((b) => b.offsetParent !== null && !(big && b.classList.contains('pz-act')));
       const i = f.indexOf(document.activeElement);
@@ -378,13 +409,13 @@ export function ProfilePreview({ contact, from, onClose }) {
     <div className={`pz-scrim ${big ? 'big' : ''}`} ref={root} onClick={(e) => { e.stopPropagation(); close(); }}>
       {big && (
         <div className="pz-top" onClick={(e) => e.stopPropagation()}>
-          <button type="button" className="pz-back" aria-label="Back" onClick={() => setBig(false)}><ArrowLeft size={26} /></button>
+          <button type="button" className="pz-back" aria-label="Back" onClick={shrink}><ArrowLeft size={26} /></button>
           <b>{name}</b>
         </div>
       )}
       <div className="pz-card" role="dialog" aria-modal="true" aria-label={`${name} profile picture`} ref={card} onClick={(e) => e.stopPropagation()}
         style={geo ? (big ? { width: geo.bw, top: geo.btop, marginLeft: -geo.bw / 2 } : { width: geo.w, top: geo.top, marginLeft: -geo.w / 2 }) : { visibility: 'hidden' }}>
-        <button type="button" className="pz-photo" aria-label={big ? 'Make profile picture smaller' : 'Make profile picture bigger'} aria-pressed={big} onClick={() => setBig((v) => !v)}>
+        <button type="button" className="pz-photo" aria-label={big ? 'Make profile picture smaller' : 'Make profile picture bigger'} aria-pressed={big} onClick={() => (big ? shrink() : grow())}>
           {avatar && !broken ? <img src={avatar} alt={`${name} profile picture`} draggable={false} onError={() => setBroken(true)} /> : <span className="pz-initials" role="img" aria-label={`${name} (no profile picture)`}>{initials}</span>}
           <b className="pz-name">{name}</b>
         </button>
