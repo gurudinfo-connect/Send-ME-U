@@ -463,7 +463,12 @@ export function NewChat() {
 }
 
 export function Notifications() {
+  const nav = useNavigate(); const notify = useUI((s) => s.notify);
   const n = useAsync(() => api.notifications(), []);
+  const respond = async (x, status) => {
+    try { await api.ceRespond(x.event_id, status); n.setData((d) => d.map((r) => (r.id === x.id ? { ...r, actionable: false, text: `${r.text} · ${status === 'accepted' ? 'Going' : 'Declined'}` } : r))); notify(status === 'accepted' ? 'You are going' : 'Declined'); }
+    catch (e) { notify(errMsg(e)); n.reload(); }
+  };
   return (
     <div className="screen">
       <AppHeader back title="Notifications" />
@@ -471,7 +476,15 @@ export function Notifications() {
         {n.loading && <ListSkeleton n={3} />}
         {n.error && <ErrorState message={n.error} onRetry={n.reload} />}
         {n.data?.length === 0 && <Empty title="All caught up" text="No new notifications." />}
-        {(n.data || []).map((x) => <div key={x.id} className="menu-row"><span className="grow">{x.text}</span><span className="muted">{x.ago}</span></div>)}
+        {(n.data || []).map((x) => (
+          <div key={x.id} className="menu-row" style={x.event_id ? { cursor: 'pointer', flexWrap: 'wrap' } : undefined} onClick={x.event_id ? () => nav(`/calls/events/${x.event_id}`) : undefined}>
+            <span className="grow">{x.text}</span><span className="muted">{x.ago}</span>
+            {x.actionable && <span style={{ display: 'flex', gap: 8, width: '100%', marginTop: 8 }} onClick={(e) => e.stopPropagation()}>
+              <Button variant="outline" className="btn-sm" onClick={() => respond(x, 'declined')}>Decline</Button>
+              <Button className="btn-sm" onClick={() => respond(x, 'accepted')}>Accept</Button>
+            </span>}
+          </div>
+        ))}
       </div>
     </div>
   );

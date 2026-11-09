@@ -14,13 +14,16 @@ import Daily from './screens/Daily';
 import Timeline from './screens/Timeline';
 import PersonProfile from './screens/PersonProfile';
 import Calls from './screens/Calls';
-import { CreateChannel, StatusPrivacy, AdPreferences, ScheduledCalls } from './screens/DailyCallsMenu';
+import { CreateChannel, StatusPrivacy, AdPreferences } from './screens/DailyCallsMenu';
 import PrivateSpace, { LockedChats, SavedLocations } from './screens/PrivateSpace';
 import { Stories, StoryCreate } from './screens/Stories';
 import { Couple, Journal, SharedGallery, Goals, Invite } from './screens/Couple';
 import Calendar from './screens/Calendar';
 import LiveLocation from './screens/LiveLocation';
 import CoupleSync from './couple/CoupleSync';
+import EventSync from './callEvents/EventSync';
+import { EventsList, EventForm, AddGuests, EventDetails, JoinLink } from './screens/CallEvents';
+import CallRoom from './screens/CallRoom';
 import Memories from './screens/Memories';
 import { PrivateGate } from './screens/PrivateLock';
 import { Starred, Broadcasts, BroadcastNew, BroadcastView, Communities, CommunityNew, CommunityView, LinkedDevices, Payments } from './screens/MenuPages';
@@ -31,7 +34,7 @@ function Protected() {
   const { user, ready } = useAuth();
   const loc = useLocation();
   if (!ready) return null;
-  return user ? <><CoupleSync /><Outlet /></> : <Navigate to="/login" replace state={{ from: loc.pathname }} />;
+  return user ? <><CoupleSync /><EventSync /><Outlet /></> : <Navigate to="/login" replace state={{ from: loc.pathname }} />;
 }
 
 // Screens that show the bottom navigation
@@ -89,7 +92,15 @@ export default function App() {
               <Route path="/private/couple/location" element={<LiveLocation />} />
             </Route>
             <Route path="/channels/new" element={<CreateChannel />} />
-            <Route path="/calls/scheduled" element={<ScheduledCalls />} />
+            <Route path="/calls/scheduled" element={<Navigate to="/calls/events" replace />} />
+            <Route path="/calls/events" element={<EventsList />} />
+            <Route path="/calls/events/new" element={<EventForm />} />
+            <Route path="/calls/events/guests" element={<AddGuests mode="draft" />} />
+            <Route path="/calls/events/:id" element={<EventDetails />} />
+            <Route path="/calls/events/:id/edit" element={<EventForm />} />
+            <Route path="/calls/events/:id/invite" element={<AddGuests mode="invite" />} />
+            <Route path="/calls/join/:meetingId" element={<JoinLink />} />
+            <Route path="/calls/room/:id" element={<CallRoom />} />
             <Route path="/settings/status-privacy" element={<StatusPrivacy />} />
             <Route path="/settings/ads" element={<AdPreferences />} />
             <Route path="/you/:page" element={<YouPage />} />

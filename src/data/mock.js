@@ -1,4 +1,4 @@
-import { sceneArt } from './art';
+import { sceneArt } from './art.js';
 
 const A = (n, ext = 'png') => `/assets/${n}.${ext}`;
 const now = Date.now();

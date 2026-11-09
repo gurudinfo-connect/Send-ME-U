@@ -3,6 +3,8 @@ import * as mock from '../data/mock';
 import { canViewContent, selectTab } from '../profile/relations';
 import { streakService } from './streakService';
 import { coupleService } from './coupleService';
+import { callEventService } from '../callEvents/eventService';
+import { randomId } from '../callEvents/logic';
 
 export const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
 // Demo mode is ON unless explicitly turned off (VITE_USE_MOCK=false) - so a deploy without env vars still works instead of calling localhost
@@ -353,6 +355,21 @@ export const api = {
   places: () => call(() => http.get('/places'), () => db.places),
   addPlace: (b) => call(() => http.post('/places', b), () => { const l = { id: uid(), ...b }; db.places.push(l); keepPlaces(); return l; }),
   deletePlace: (id) => call(() => http.delete(`/places/${id}`), () => { db.places = db.places.filter((l) => l.id !== id); keepPlaces(); return { ok: true }; }),
-  notifications: () => call(() => http.get('/notifications'), () => [...coupleService.notifications(), ...db.notifications]),
+  notifications: () => call(() => http.get('/notifications'), () => [...callEventService.notifications(), ...coupleService.notifications(), ...db.notifications]),
+  // scheduled calls ("call events"): /call-events, because /events is the couple calendar. Rules: src/callEvents/logic.js, server: backend/src/callEvents
+  ceList: () => call(() => http.get('/call-events'), () => callEventService.list()),
+  ceGet: (id) => call(() => http.get(`/call-events/${id}`), () => callEventService.get(id)),
+  ceByLink: (meetingId) => call(() => http.get(`/call-events/link/${meetingId}`), () => callEventService.byMeeting(meetingId)),
+  ceDraftId: () => randomId(),
+  ceCreate: (b) => call(() => http.post('/call-events', b), () => callEventService.create(b)),
+  ceUpdate: (id, b) => call(() => http.put(`/call-events/${id}`, b), () => callEventService.update(id, b)),
+  ceCancel: (id) => call(() => http.delete(`/call-events/${id}`), () => callEventService.cancel(id)),
+  ceAddGuests: (id, guestIds) => call(() => http.post(`/call-events/${id}/guests`, { guestIds }), () => callEventService.addGuests(id, guestIds)),
+  ceRemoveGuest: (id, userId) => call(() => http.delete(`/call-events/${id}/guests/${userId}`), () => callEventService.removeGuest(id, userId)),
+  ceRespond: (id, status) => call(() => http.post(`/call-events/${id}/respond`, { status }), () => callEventService.respond(id, status)),
+  ceParticipants: (id) => call(() => http.get(`/call-events/${id}/participants`), () => callEventService.participants(id)),
+  ceJoin: (id) => call(() => http.post(`/call-events/${id}/join`), () => callEventService.join(id)),
+  ceLeave: (id) => call(() => http.post(`/call-events/${id}/leave`), () => callEventService.leave(id)),
+  ceDecide: (id, userId, approve) => call(() => http.post(`/call-events/${id}/requests/${userId}`, { approve }), () => callEventService.decideRequest(id, userId, approve)),
   albums: () => Promise.resolve(mock.albums),
 };

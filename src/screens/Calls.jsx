@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Phone, Video, ArrowUpRight, ArrowDownLeft, Search, Delete, CalendarDays } from 'lucide-react';
+import { Phone, Video, ArrowUpRight, ArrowDownLeft, Search, Delete, CalendarDays, CalendarPlus } from 'lucide-react';
 import { BrandBar, DropMenu, PageTitle, Modal, Button, Empty, ListSkeleton, ErrorState, useAsync } from '../components/ui';
 import { api, errMsg } from '../services/api';
-import { useUI } from '../store';
+import { useUI, useAuth } from '../store';
+import { subscribeCallEvents } from '../services/socket';
+import { upcomingFor, whenLabel } from '../callEvents/logic';
+import { useEffect } from 'react';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
 
@@ -12,24 +15,22 @@ export default function Calls() {
   const nav = useNavigate();
   const notify = useUI((s) => s.notify);
   const calls = useAsync(() => api.calls(), []);
-  const sched = useAsync(() => api.scheduledCalls(), []);
+  const sched = useAsync(() => api.ceList(), []);
+  const me = useAuth((x) => x.user);
+  useEffect(() => subscribeCallEvents((n) => (n === 'events:changed' || n === 'notification:new') && sched.reload()), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [, tick] = useState(0);
+  useEffect(() => { const t = setInterval(() => tick((n) => n + 1), 15000); return () => clearInterval(t); }, []);
   const [sheet, setSheet] = useState(null); // 'call' | 'keypad'
   const [digits, setDigits] = useState('');
   const [menu, setMenu] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const menuItems = [
     { key: 'clear', label: 'Clear call log', onSelect: () => setConfirmClear(true) },
-    { key: 'sched', label: 'Scheduled calls', onSelect: () => nav('/calls/scheduled') },
+    { key: 'sched', label: 'Scheduled calls', onSelect: () => nav('/calls/events') },
   ];
   const list = (calls.data || []);
-  const upcoming = (sched.data || []).filter((c) => +new Date(c.at) > Date.now() - 30 * 60000);
-  const whenOf = (at) => {
-    const d = new Date(at), t = new Date(), tm = new Date(); tm.setDate(t.getDate() + 1);
-    const same = (a, b) => a.toDateString() === b.toDateString();
-    const day = same(d, t) ? 'Today' : same(d, tm) ? 'Tomorrow' : d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
-    const end = new Date(+d + 30 * 60000), f = (x) => x.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    return `${day}, ${f(d)} – ${f(end)}`;
-  };
+  const upcoming = upcomingFor(sched.data || [], me?.id, Date.now(), 1);
+  const joinEvent = (e) => (e.join?.ok ? nav(`/calls/room/${e.id}`) : notify(e.join?.reason || 'You cannot join this call'));
 
   const place = async (c, video) => {
     try { const k = await api.placeCall({ name: c.name, avatar: c.avatar, fav: !!c.fav, video: !!video }); calls.setData((d) => [k, ...(d || [])]); notify(`${video ? 'Video calling' : 'Calling'} ${c.name}…`); setSheet(null); }
@@ -51,7 +52,7 @@ export default function Calls() {
             <span className="qa-ic"><Phone size={22} strokeWidth={2.2} /></span>
             <span className="qa-lb">Call</span>
           </button>
-          <button type="button" className="qa" onClick={() => nav('/calls/scheduled?new=1')}>
+          <button type="button" className="qa" onClick={() => nav('/calls/events/new?fresh=1')}>
             <span className="qa-ic"><CalendarDays size={22} strokeWidth={2.2} /></span>
             <span className="qa-lb">Schedule</span>
           </button>
@@ -60,16 +61,17 @@ export default function Calls() {
           <section aria-label="Upcoming calls">
             <div className="sec-head" style={{ margin: '14px 0 6px' }}>
               <h2>Upcoming</h2>
+              <button type="button" className="up-more" onClick={() => nav('/calls/events')}>More</button>
             </div>
-            {upcoming.map((c) => (
-              <div key={c.id} className="call-row up-row">
-                <span className="avr"><img src={c.avatar} alt="" /></span>
+            {upcoming.map((e) => (
+              <div key={e.id} className="call-row up-row up-card" role="button" tabIndex={0} onClick={() => nav(`/calls/events/${e.id}`)} onKeyDown={(x) => x.key === 'Enter' && nav(`/calls/events/${e.id}`)}>
+                <span className="avr up-av"><img src={e.host.avatar} alt="" /><i className="up-badge"><CalendarDays size={14} /></i></span>
                 <span className="meta">
-                  <span className="nm" style={{ display: 'block' }}>{c.note || `${c.name}'s call`}</span>
-                  <span className="sub up-who">{c.name}</span>
-                  <span className="sub">{whenOf(c.at)}</span>
-                  <button type="button" className="up-join" onClick={() => place(c, !!c.video)}>
-                    {c.video ? <Video size={18} /> : <Phone size={17} />} Join
+                  <span className="nm" style={{ display: 'block' }}>{e.title}</span>
+                  <span className="sub up-who">{e.host.name}</span>
+                  <span className="sub">{whenLabel(e)}</span>
+                  <button type="button" className={`up-join ${e.join?.ok ? '' : 'off'}`} aria-disabled={!e.join?.ok} onClick={(ev) => { ev.stopPropagation(); joinEvent(e); }}>
+                    {e.call_type === 'video' ? <Video size={18} /> : <Phone size={17} />} Join
                   </button>
                 </span>
               </div>
@@ -97,6 +99,7 @@ export default function Calls() {
           </div>
         ))}
       </div>
+      <button type="button" className="ev-fab above-nav" aria-label="Schedule a call" onClick={() => nav('/calls/events/new?fresh=1')}><CalendarPlus size={26} /></button>
 
       <Modal open={confirmClear} onClose={() => setConfirmClear(false)} title="Clear call log?">
         <p className="muted" style={{ marginBottom: 14 }}>This removes every call from your Recent list. Scheduled calls are not affected.</p>

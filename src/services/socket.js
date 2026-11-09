@@ -1,6 +1,7 @@
 import { io } from 'socket.io-client';
 import { tokenStore, USE_MOCK } from './api';
 import { coupleBus } from './coupleService';
+import { callEventBus } from '../callEvents/eventService';
 
 const URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
 let socket = null;
@@ -32,4 +33,18 @@ export function subscribeCouple(handler) {
   const onConnect = () => handler('socket:reconnected', {}); // refetch after a dropped connection
   s.io.on('reconnect', onConnect);
   return () => { subs.forEach(([n, h]) => s.off(n, h)); s.io.off('reconnect', onConnect); };
+}
+
+// Scheduled-call events. Handler names: notification:new {text,kind,event_id} | events:changed | join:approved {event_id}.
+// Demo mode listens to the local bus; the real server emits notification:new, callevent:changed and callevent:join_approved to the user's room.
+export function subscribeCallEvents(handler) {
+  if (USE_MOCK) {
+    const f = (e) => handler(e.detail.name, e.detail.payload);
+    callEventBus.addEventListener('callevent', f);
+    return () => callEventBus.removeEventListener('callevent', f);
+  }
+  const s = connectSocket(); if (!s) return () => {};
+  const map = { 'notification:new': 'notification:new', 'callevent:changed': 'events:changed', 'callevent:join_approved': 'join:approved' };
+  const subs = Object.entries(map).map(([n, out]) => { const h = (p) => handler(out, p); s.on(n, h); return [n, h]; });
+  return () => subs.forEach(([n, h]) => s.off(n, h));
 }
