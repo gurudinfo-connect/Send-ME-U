@@ -1742,3 +1742,24 @@ div.my-story { cursor: pointer; }
 .my-story:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .sm-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
 .se-crop-row { flex-wrap: wrap; }
+
+/* Timeline "People you know": clickable cards, three-dot dropdown, person profile */
+.pcard[role='link'] { cursor: pointer; }
+.pcard[role='link']:focus-visible { outline: 2px solid #2f5bff; outline-offset: 2px; }
+.pm-backdrop { position: fixed; inset: 0; z-index: 60; background: transparent; cursor: default; }
+.pm { position: fixed; z-index: 61; min-width: 168px; padding: 6px 0; border-radius: 18px; background: var(--card); color: var(--ink); border: 1px solid var(--line); box-shadow: 0 18px 44px rgba(20, 30, 70, .22), 0 2px 8px rgba(20, 30, 70, .08); transform-origin: top right; animation: dm-in .18s var(--ease) backwards; }
+[data-theme='dark'] .pm { background: #121214; border-color: #232326; box-shadow: 0 18px 44px rgba(0, 0, 0, .75); }
+.pm.up { transform-origin: bottom right; }
+.pm.out { animation: pm-out .13s ease forwards; pointer-events: none; }
+.pm .dm-item { justify-content: flex-start; gap: 12px; padding: 12px 18px; font-size: 15px; }
+.pm .dm-item svg { flex-shrink: 0; opacity: .8; }
+.pm .dm-item.danger { color: #e5484d; }
+@keyframes pm-out { to { opacity: 0; transform: scale(.9) translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .pm, .pm.out { animation: none; } }
+.pp-stats { display: flex; gap: 28px; margin-top: 16px; }
+.pp-stats div { text-align: center; line-height: 1.2; }
+.pp-stats b { display: block; font-size: 18px; font-weight: 600; }
+.pp-stats span { font-size: 12px; color: var(--muted); }
+.pp-actions { display: flex; gap: 10px; align-items: center; margin-top: 16px; }
+.pp-actions .fbtn { height: 42px; padding: 0 20px; font-size: 14px; gap: 6px; }
+.pp-actions .btn { height: 42px; padding: 0 18px; }

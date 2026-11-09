@@ -218,6 +218,7 @@ export function BottomNav() {
 
 // Last result per request is remembered, so revisiting a screen shows data instantly (and refreshes quietly in the background)
 const asyncCache = new Map();
+export const clearAsyncCache = () => asyncCache.clear(); // call after a change that other screens' cached lists should not show
 export function useAsync(fn, deps = []) {
   const key = `${fn.toString()}|${JSON.stringify(deps)}`;
   const hit = asyncCache.get(key);

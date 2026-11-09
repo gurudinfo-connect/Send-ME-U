@@ -92,3 +92,8 @@ Socket.IO (token in `auth`): client emits `conversation:join|leave`, `typing:sta
 - On touch devices the app fills the whole screen (no phone frame). The framed look only shows on desktop with a mouse.
 - Installable: open the site, then **Android Chrome** → ⋮ → *Install app*; **iPhone Safari** → Share → *Add to Home Screen*. It then opens with no browser bars (`public/manifest.webmanifest`, `public/sw.js`, icons in `public/`).
 - To also hide the Android status bar, set `"display": "fullscreen"` in the manifest.
+
+## Timeline people actions
+
+Three-dot menu (Open / Follow / Remove / Block) and `/people/:id` profile. Client calls: `GET /users/:id/profile`, `POST|DELETE /users/:id/follow`, `DELETE /suggestions/:id`, `POST /users/:id/block`.
+Server side: `backend/src/people/routes.js` + `backend/migrations/003_people_relations.sql`. Demo mode keeps the same state in `localStorage` (`smu.rel`).

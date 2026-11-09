@@ -41,8 +41,23 @@ const db = {
   journal: clone(mock.journal), goals: clone(mock.goals), stories: mock.stories, people: clone(mock.people),
   channels: clone(mock.channels), activity: clone(mock.activity), calls: clone(mock.calls), scheduled: clone(mock.scheduledCalls), places: clone(mock.savedPlaces),
   messages: {}, me: { ...mock.me }, notifications: clone(mock.notifications), couple: clone(mock.couple),
-  following: new Set(),
   storyViewers: clone(mock.storyViewers),
+};
+// Relationships survive a page reload in demo mode: follow overrides, dismissed suggestions, blocked people
+const REL_KEY = 'smu.rel';
+let rel = { follow: {}, removed: [], blocked: [] };
+try { const saved = JSON.parse(localStorage.getItem(REL_KEY) || 'null'); if (saved) rel = { ...rel, ...saved }; } catch { /* ignore */ }
+const keepRel = () => { try { localStorage.setItem(REL_KEY, JSON.stringify(rel)); } catch { /* ignore */ } };
+const parseCnt = (v) => (/k$/i.test(String(v)) ? Math.round(parseFloat(v) * 1000) : parseInt(String(v).replace(/,/g, ''), 10) || 0);
+const fmtCnt = (n) => (n >= 1000 ? `${(Math.round(n / 100) / 10).toString().replace(/\.0$/, '')}K` : String(n));
+const isFol = (p) => (p.id in rel.follow ? rel.follow[p.id] : !!p.isFollowing);
+// a person as the current user sees them: live follow state and follower count
+const relView = (p) => ({ ...p, isFollowing: isFol(p), followers: fmtCnt(parseCnt(p.followers) + (isFol(p) ? 1 : 0) - (p.isFollowing ? 1 : 0)) });
+const findPerson = (id) => {
+  if (id === db.me.id) throw { message: 'That is you' };
+  const p = db.people.find((x) => x.id === id);
+  if (!p) throw { message: 'User not found' };
+  return p;
 };
 const uid = () => Math.random().toString(36).slice(2, 9);
 // saved places survive a page reload in demo mode
@@ -140,10 +155,37 @@ export const api = {
   streakPrefs: () => call(() => http.get('/streaks/preferences'), () => streakService.prefs()),
   setStreakPrefs: (b) => call(() => http.put('/streaks/preferences', b), () => streakService.setPrefs(b)),
   // discover
+  // params.suggestions: the Timeline "People you know" list, which also hides people the user dismissed. Blocked people never show.
   people: (params) => call(() => http.get('/discover/people', { params }), () => {
-    const c = params?.interest; return db.people.filter((p) => !c || p.interests.includes(c));
+    const c = params?.interest;
+    return db.people.filter((p) => !rel.blocked.includes(p.id) && !(params?.suggestions && rel.removed.includes(p.id)) && (!c || p.interests.includes(c))).map(relView);
   }),
-  follow: (id) => call(() => http.post(`/users/${id}/follow`), () => { db.following.add(id); return { following: true }; }),
+  userProfile: (id) => call(() => http.get(`/users/${id}/profile`), () => {
+    const p = db.people.find((x) => x.id === id);
+    if (!p) throw { message: 'This profile could not be found' };
+    if (rel.blocked.includes(id)) throw { message: 'This profile isn’t available' };
+    return relView(p);
+  }),
+  // idempotent: following someone twice never creates a second relationship
+  follow: (id) => call(() => http.post(`/users/${id}/follow`), () => {
+    const p = findPerson(id);
+    if (rel.blocked.includes(id)) throw { message: 'This profile isn’t available' };
+    rel.follow[id] = true; keepRel();
+    return { following: true, followers: relView(p).followers };
+  }),
+  unfollow: (id) => call(() => http.delete(`/users/${id}/follow`), () => {
+    const p = findPerson(id); rel.follow[id] = false; keepRel();
+    return { following: false, followers: relView(p).followers };
+  }),
+  // hides one person from "People you know"; the account and any follow relationship are untouched
+  dismissSuggestion: (id) => call(() => http.delete(`/suggestions/${id}`), () => {
+    findPerson(id); if (!rel.removed.includes(id)) rel.removed.push(id); keepRel(); return { ok: true };
+  }),
+  blockUser: (id) => call(() => http.post(`/users/${id}/block`), () => {
+    findPerson(id); if (!rel.blocked.includes(id)) rel.blocked.push(id);
+    rel.follow[id] = false; keepRel(); return { blocked: true };
+  }),
+  directChat: (id) => call(() => http.post('/conversations/direct', { userId: id }), () => { findPerson(id); return chatFor(id); }),
   addFriend: (id) => call(() => http.post(`/friends/${id}`), () => ({ requested: true })),
   // stories
   stories: () => call(() => http.get('/stories'), () => db.stories),

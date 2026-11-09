@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Phone, Video, CalendarDays, ArrowUpRight, ArrowDownLeft, Search, Delete } from 'lucide-react';
+import { Phone, Video, ArrowUpRight, ArrowDownLeft, Search, Delete } from 'lucide-react';
 import { BrandBar, DropMenu, PageTitle, Modal, Button, Empty, ListSkeleton, ErrorState, useAsync } from '../components/ui';
 import { api, errMsg } from '../services/api';
 import { useUI } from '../store';
@@ -37,11 +37,6 @@ export default function Calls() {
       <BrandBar onSearch={() => setSheet('call')} onMore={() => setMenu((m) => !m)} moreOpen={menu} moreMenu={<DropMenu open={menu} onClose={() => setMenu(false)} items={menuItems} label="Calls menu" />} />
       <div className="scroll" style={{ padding: '0 0 120px' }}>
         <PageTitle title="Calls" sub="Make, schedule and manage your calls" />
-        <div className="qa-row">
-          <button className="qa" onClick={() => setSheet('call')}><Phone size={32} />Call</button>
-          <button className="qa" onClick={() => nav('/calls/scheduled?new=1')}><CalendarDays size={32} />Schedule</button>
-        </div>
-
         <div className="sec-head" style={{ margin: '20px 0 6px' }}>
           <h2>Recent</h2>
         </div>

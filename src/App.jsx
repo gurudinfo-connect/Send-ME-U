@@ -12,6 +12,7 @@ import Streaks from './screens/Streaks';
 import Discover from './screens/Discover';
 import Daily from './screens/Daily';
 import Timeline from './screens/Timeline';
+import PersonProfile from './screens/PersonProfile';
 import Calls from './screens/Calls';
 import { CreateChannel, StatusPrivacy, AdPreferences, ScheduledCalls } from './screens/DailyCallsMenu';
 import PrivateSpace, { LockedChats, SavedLocations } from './screens/PrivateSpace';
@@ -92,6 +93,7 @@ export default function App() {
             <Route path="/settings/status-privacy" element={<StatusPrivacy />} />
             <Route path="/settings/ads" element={<AdPreferences />} />
             <Route path="/you/:page" element={<YouPage />} />
+            <Route path="/people/:id" element={<PersonProfile />} />
             <Route path="/discover" element={<Discover />} />
             <Route path="/memories" element={<Memories />} />
             <Route path="/chats/new" element={<NewChat />} />
