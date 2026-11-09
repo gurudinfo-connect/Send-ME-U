@@ -78,7 +78,7 @@ export default function Daily() {
               <img className="logo" src={c.logo} alt="" />
               <span className="meta">
                 <span className="nm" style={{ display: 'block' }}>{c.name}</span>
-                <span className="pv">{I && <I size={16} />}{c.last}</span>
+                <span className="cpv">{I && <I size={16} />}{c.last}</span>
               </span>
               <span className="rt"><span>{c.time}</span>{c.unread > 0 && <span className="ub">{c.unread}</span>}</span>
             </button>
