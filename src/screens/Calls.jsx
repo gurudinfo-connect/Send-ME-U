@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Phone, Video, ArrowUpRight, ArrowDownLeft, Search, Delete } from 'lucide-react';
+import { Phone, Video, ArrowUpRight, ArrowDownLeft, Search, Delete, CalendarDays } from 'lucide-react';
 import { BrandBar, DropMenu, PageTitle, Modal, Button, Empty, ListSkeleton, ErrorState, useAsync } from '../components/ui';
 import { api, errMsg } from '../services/api';
 import { useUI } from '../store';
@@ -37,7 +37,17 @@ export default function Calls() {
       <BrandBar onSearch={() => setSheet('call')} onMore={() => setMenu((m) => !m)} moreOpen={menu} moreMenu={<DropMenu open={menu} onClose={() => setMenu(false)} items={menuItems} label="Calls menu" />} />
       <div className="scroll" style={{ padding: '0 0 120px' }}>
         <PageTitle title="Calls" sub="Make, schedule and manage your calls" />
-        <div className="sec-head" style={{ margin: '20px 0 6px' }}>
+        <div className="qa-row" role="group" aria-label="Call actions">
+          <button type="button" className="qa" onClick={() => setSheet('call')}>
+            <span className="qa-ic"><Phone size={30} strokeWidth={2.2} /></span>
+            <span className="qa-lb">Call</span>
+          </button>
+          <button type="button" className="qa" onClick={() => nav('/calls/scheduled?new=1')}>
+            <span className="qa-ic"><CalendarDays size={30} strokeWidth={2.2} /></span>
+            <span className="qa-lb">Schedule</span>
+          </button>
+        </div>
+        <div className="sec-head" style={{ margin: '14px 0 6px' }}>
           <h2>Recent</h2>
         </div>
         {calls.loading && <div style={{ padding: '0 18px' }}><ListSkeleton n={4} /></div>}

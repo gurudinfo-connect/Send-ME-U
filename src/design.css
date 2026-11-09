@@ -1763,3 +1763,11 @@ div.my-story { cursor: pointer; }
 .pp-actions { display: flex; gap: 10px; align-items: center; margin-top: 16px; }
 .pp-actions .fbtn { height: 42px; padding: 0 20px; font-size: 14px; gap: 6px; }
 .pp-actions .btn { height: 42px; padding: 0 18px; }
+
+/* ===== Calls: Call + Schedule quick actions (fill the gap under the title) ===== */
+.qa-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; justify-items: center; padding: 22px 18px 8px; }
+.qa-row .qa { width: 100%; height: auto; gap: 10px; padding: 0; animation: none; }
+.qa-row .qa-ic { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; color: var(--ink); background: var(--cream-soft); border: 1px solid var(--glass-line); box-shadow: var(--glass-shadow); transition: transform .3s var(--spring), background .25s, color .25s; }
+.qa-row .qa:active .qa-ic { transform: scale(.92); }
+.qa-row .qa:hover .qa-ic, .qa-row .qa:focus-visible .qa-ic { background: var(--grad-nav); color: #fff; }
+.qa-row .qa-lb { font-size: 14.5px; font-weight: 500; color: var(--ink); letter-spacing: .01em; }
