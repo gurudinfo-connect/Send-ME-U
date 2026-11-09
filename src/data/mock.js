@@ -7,13 +7,51 @@ const mins = (m) => new Date(now - m * 60000).toISOString();
 export const me = { id: 'u0', name: 'Mr_Dgs', handle: 'mr__dgs', email: 'guru@example.com', phone: '+91 9987456321', about: '', links: 'Instagram', avatar: A('me', 'svg'), posts: 128, friends: 256, albums: 18, partnerId: 'u1' };
 
 export const people = [
-  { id: 'u1', name: 'Priya Sharma', handle: '@priya.sharma', bio: 'Tech Enthusiast | Traveler | Reader', mutual: 12, followers: '548', following: '312', avatar: A('tl-priya'), online: true, isFollowing: false, friend: true, follower: true, distance: '2 km away', interests: ['Travel'] },
-  { id: 'u2', name: 'Rahul Verma', handle: '@rahul.verma', bio: 'Developer | AI & Data | Fitness', mutual: 8, followers: '1.2K', following: '460', avatar: A('tl-rahul'), online: true, isFollowing: true, friend: true, follower: true, distance: '3 km away', interests: ['Fitness'] },
-  { id: 'u3', name: 'Anu Reddy', handle: '@anu.reddy', bio: 'UI/UX Designer | Creative Mind', mutual: 6, followers: '724', following: '398', avatar: A('tl-anu'), online: false, isFollowing: false, friend: false, follower: true, distance: '1 km away', interests: ['Music'] },
-  { id: 'u4', name: 'Muthu Kumar', handle: '@muthu.kumar', bio: 'Product Analyst | Cricket | Travel', mutual: 15, followers: '986', following: '721', avatar: A('tl-muthu'), online: true, isFollowing: true, friend: true, follower: false, distance: '2 km away', interests: ['Food'] },
-  { id: 'u5', name: 'Karthik', handle: '@karthik.s', bio: 'Programmer | Biker | Photography', mutual: 9, followers: '642', following: '380', avatar: A('tl-karthik'), online: false, isFollowing: false, friend: false, follower: false, distance: '4 km away', interests: ['Movies'] },
-  { id: 'u6', name: 'Neha', handle: '@neha.j', bio: 'Data Analyst | Books | Music', mutual: 11, followers: '1.1K', following: '504', avatar: A('tl-neha'), online: false, isFollowing: false, friend: false, follower: true, distance: '5 km away', interests: ['Books'] },
+  { id: 'u1', name: 'Priya Sharma', handle: '@priya.sharma', bio: 'Tech Enthusiast | Traveler | Reader', mutual: 12, followers: '548', following: '312', avatar: A('tl-priya'), online: true, isFollowing: false, friend: true, follower: true, distance: '2 km away', interests: ['Travel'], title: 'Software Engineer · Travel blogger', location: 'Bengaluru, India', website: 'priya.dev', skills: ['React', 'Photography', 'Storytelling'], verified: true, isPrivate: false },
+  { id: 'u2', name: 'Rahul Verma', handle: '@rahul.verma', bio: 'Developer | AI & Data | Fitness', mutual: 8, followers: '1.2K', following: '460', avatar: A('tl-rahul'), online: true, isFollowing: true, friend: true, follower: true, distance: '3 km away', interests: ['Fitness'], title: 'ML Engineer', location: 'Chennai, India', website: 'rahulverma.in', skills: ['Python', 'TensorFlow', 'Strength training'], verified: false, isPrivate: false },
+  { id: 'u3', name: 'Anu Reddy', handle: '@anu.reddy', bio: 'UI/UX Designer | Creative Mind', mutual: 6, followers: '724', following: '398', avatar: A('tl-anu'), online: false, isFollowing: false, friend: false, follower: true, distance: '1 km away', interests: ['Music'], title: 'Senior UI/UX Designer', location: 'Hyderabad, India', website: '', skills: ['Figma', 'Branding', 'Illustration'], verified: false, isPrivate: true },
+  { id: 'u4', name: 'Muthu Kumar', handle: '@muthu.kumar', bio: 'Product Analyst | Cricket | Travel', mutual: 15, followers: '986', following: '721', avatar: A('tl-muthu'), online: true, isFollowing: true, friend: true, follower: false, distance: '2 km away', interests: ['Food'], title: 'Product Analyst', location: 'Coimbatore, India', website: '', skills: ['SQL', 'Cricket coaching'], verified: false, isPrivate: true },
+  { id: 'u5', name: 'Karthik', handle: '@karthik.s', bio: 'Programmer | Biker | Photography', mutual: 9, followers: '642', following: '380', avatar: A('tl-karthik'), online: false, isFollowing: false, friend: false, follower: false, distance: '4 km away', interests: ['Movies'], title: 'Full-stack Programmer', location: 'Bengaluru, India', website: 'karthik.codes', skills: ['Node.js', 'Riding', 'Street photography'], verified: false, isPrivate: false },
+  { id: 'u6', name: 'Neha', handle: '@neha.j', bio: 'Data Analyst | Books | Music', mutual: 11, followers: '1.1K', following: '504', avatar: A('tl-neha'), online: false, isFollowing: false, friend: false, follower: true, distance: '5 km away', interests: ['Books'], title: 'Data Analyst', location: 'Pune, India', website: '', skills: ['Power BI', 'Reading'], verified: false, isPrivate: false },
 ];
+
+// ---- posts / reels / tags for the profile pages (generated once, deterministic) ----
+const SCENES = ['sunset', 'mountain', 'flower', 'city', 'couple', 'lake'];
+const CAPTIONS = {
+  u1: ['Golden hour in Coorg 🌿', 'Coffee, a book and nowhere to be.', 'Trail notes from the weekend', 'New lens, new views 📸', 'Sunday reset', 'Packing for the next one ✈️', 'Home sweet home', 'Cloud watching', 'Found this little cafe'],
+  u2: ['Shipped a new model today 🚀', 'Leg day done.', 'Notebook > slides', 'Late night debugging', 'Gym before sunrise', 'Reading the new paper', 'Demo day!', 'Marathon prep', 'Weekend project', 'Whiteboard doodles', 'Coffee and tensors', 'Sunday long run'],
+  u3: ['Moodboard for the new brand', 'Redesign shipped ✨', 'Sketching on the train', 'Colour palettes I love', 'Studio corner', 'Tiny icons, big feelings'],
+  u4: ['Match day 🏏', 'Dashboards at dawn', 'Net practice', 'Road trip snacks', 'Analyst life', 'Sunset at the ground', 'Team lunch', 'Back to nets'],
+  u5: ['Ride to Nandi Hills 🏍️', 'Street frames', 'Merged to main', 'Chai stop', 'Night ride', 'Bokeh test', 'Weekend loop'],
+  u6: ['Chart of the week 📊', 'Library afternoons', 'New playlist', 'Currently reading', 'Rain on the window', 'Notebook season', 'Pune mornings', 'Book haul', 'Dashboards & chai', 'Quiet Sunday'],
+};
+const COMMENTERS = ['u1', 'u2', 'u3', 'u4', 'u5', 'u6'];
+const COMMENT_TEXT = ['Love this! 😍', 'So good 🔥', 'Wow, where is this?', 'Beautiful shot', 'Need to try this', 'Great one!', 'Goals 🙌', 'This made my day'];
+export function buildPosts() {
+  const list = [];
+  people.forEach((p, pi) => {
+    (CAPTIONS[p.id] || []).forEach((caption, i) => {
+      const id = `${p.id}-p${i + 1}`;
+      const video = i % 4 === 3;
+      const tagged = (i + pi) % 3 === 0 ? [people[(pi + 1) % people.length].id] : [];
+      if (i % 5 === 1) tagged.push(people[(pi + 2) % people.length].id);
+      const comments = Array.from({ length: (i + pi) % 4 }, (_, k) => {
+        const who = people[(pi + k + 1) % people.length];
+        return { id: `${id}-c${k + 1}`, userId: who.id, name: who.name, avatar: who.avatar, text: COMMENT_TEXT[(i + k + pi) % COMMENT_TEXT.length], at: new Date(now - (i * 26 + k * 3 + 2) * 36e5).toISOString() };
+      });
+      list.push({
+        id, userId: p.id, type: video ? 'video' : 'image',
+        src: video ? null : sceneArt(SCENES[(pi + i) % SCENES.length], 600, 600),
+        poster: sceneArt(SCENES[(pi + i + 2) % SCENES.length], 400, video ? 640 : 400),
+        duration: video ? `0:${String(8 + ((i * 7 + pi * 5) % 40)).padStart(2, '0')}` : null,
+        caption, tagged: [...new Set(tagged)].filter((t) => t !== p.id),
+        createdAt: new Date(now - (i * 26 + pi * 5 + 3) * 36e5).toISOString(),
+        likes: 14 + ((i * 37 + pi * 53) % 480), comments,
+      });
+    });
+  });
+  return list;
+}
 
 export const conversations = [
   { id: 'c1', friendId: 'u1', type: 'direct', name: 'Priya', fullName: 'Priya Sharma', handle: '@priya.sharma', phone: '+91 98765 43210', about: 'Tech Enthusiast | Traveler | Reader', location: 'Bengaluru, India', joined: 'March 2024', heart: true, favorite: true, avatar: A('priya'), last: 'Hey! Are you free tonight? 😊', time: '10:42', unread: 2, online: true, kind: 'messages' },

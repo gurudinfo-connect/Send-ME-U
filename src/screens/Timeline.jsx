@@ -4,7 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { MoreVertical, ChevronRight, SlidersHorizontal, UserPlus, Check, Users, User, EyeOff, Ban } from 'lucide-react';
 import { BrandBar, GlassTabs, PageTitle, ListSkeleton, Empty, ErrorState, Modal, Button, useAsync, clearAsyncCache } from '../components/ui';
 import { api, errMsg } from '../services/api';
-import { useUI, useChatPrefs } from '../store';
+import { useUI } from '../store';
+import { followAction } from '../profile/relations';
+import { blockPerson } from '../profile/actions';
 
 const FILTERS = [['all', 'All'], ['friends', 'Friends'], ['followers', 'Followers'], ['following', 'Following'], ['groups', 'Groups']];
 
@@ -62,7 +64,7 @@ function PersonMenu({ anchor, items, label, onClose }) {
 }
 
 function PersonCard({ p, onOpen, onMenu, onToggle }) {
-  const following = !!p.isFollowing;
+  const following = !!p.isFollowing, requested = !following && !!p.requested;
   // the button and the three dots never trigger the card's own navigation
   const stop = (fn) => (e) => { e.stopPropagation(); fn(e); };
   return (
@@ -83,8 +85,8 @@ function PersonCard({ p, onOpen, onMenu, onToggle }) {
           <div><b>{p.followers}</b><span>Followers</span></div><i />
           <div><b>{p.following}</b><span>Following</span></div>
         </div>
-        <button className={`fbtn ${following ? 'on' : ''}`} onClick={stop(() => onToggle(p))} aria-pressed={following}>
-          {following ? <><Check size={15} />Following</> : <><UserPlus size={14} />Follow</>}
+        <button className={`fbtn ${following || requested ? 'on' : ''}`} onClick={stop(() => onToggle(p))} aria-pressed={following}>
+          {following ? <><Check size={15} />Following</> : requested ? 'Requested' : <><UserPlus size={14} />Follow</>}
         </button>
       </div>
     </article>
@@ -108,14 +110,16 @@ export default function Timeline() {
   const toggle = async (p) => {
     if (busy.current.has(p.id)) return;
     busy.current.add(p.id);
-    const was = !!p.isFollowing;
-    patch(p.id, () => ({ isFollowing: !was }));
+    const before = { isFollowing: !!p.isFollowing, requested: !!p.requested };
+    const act = followAction(p); // follow | request (private account) | cancel the request | unfollow
+    const off = act === 'unfollow' || act === 'cancel';
+    patch(p.id, () => (off ? { isFollowing: false, requested: false } : act === 'request' ? { requested: true } : { isFollowing: true }));
     try {
-      const r = await (was ? api.unfollow(p.id) : api.follow(p.id));
-      patch(p.id, () => ({ isFollowing: r.following, ...(r.followers != null ? { followers: r.followers } : {}) }));
+      const r = await (off ? api.unfollow(p.id) : api.follow(p.id));
+      patch(p.id, () => ({ isFollowing: r.following, requested: !!r.requested, ...(r.followers != null ? { followers: r.followers } : {}) }));
       clearAsyncCache();
-      if (!was) notify(`Following ${p.name}`);
-    } catch (e) { patch(p.id, () => ({ isFollowing: was })); notify(errMsg(e)); }
+      if (r.requested) notify(`Follow request sent to ${p.name}`); else if (!off) notify(`Following ${p.name}`);
+    } catch (e) { patch(p.id, () => before); notify(errMsg(e)); }
     finally { busy.current.delete(p.id); }
   };
   const remove = async (p) => {
@@ -128,9 +132,7 @@ export default function Timeline() {
     const p = confirm; if (!p || blocking) return;
     setBlocking(true);
     try {
-      await api.blockUser(p.id);
-      // the existing chat block (ContactInfo) is keyed by conversation id, so apply it to this person's direct chat too
-      try { const c = (await api.conversations({})).find((x) => x.friendId === p.id); if (c) useChatPrefs.getState().setPref(c.id, { blocked: true }); } catch { /* chat may not exist */ }
+      await blockPerson(p.id); // blocks the person and their direct chat
       people.setData((d) => (d || []).filter((x) => x.id !== p.id));
       clearAsyncCache(); setConfirm(null); notify(`${p.name} blocked`);
     } catch (e) { notify(errMsg(e)); } finally { setBlocking(false); }
@@ -141,7 +143,9 @@ export default function Timeline() {
     { key: 'open', label: 'Open', icon: User, onSelect: () => open(menuPerson) },
     menuPerson.isFollowing
       ? { key: 'follow', label: 'Following', icon: Check, onSelect: () => notify(`You already follow ${menuPerson.name}`) }
-      : { key: 'follow', label: 'Follow', icon: UserPlus, onSelect: () => toggle(menuPerson) },
+      : menuPerson.requested
+        ? { key: 'follow', label: 'Requested', icon: Check, onSelect: () => toggle(menuPerson) }
+        : { key: 'follow', label: 'Follow', icon: UserPlus, onSelect: () => toggle(menuPerson) },
     { key: 'remove', label: 'Remove', icon: EyeOff, onSelect: () => remove(menuPerson) },
     { key: 'block', label: 'Block', icon: Ban, danger: true, onSelect: () => setConfirm(menuPerson) },
   ] : [];

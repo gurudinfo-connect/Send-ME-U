@@ -12,6 +12,7 @@ export default function Calls() {
   const nav = useNavigate();
   const notify = useUI((s) => s.notify);
   const calls = useAsync(() => api.calls(), []);
+  const sched = useAsync(() => api.scheduledCalls(), []);
   const [sheet, setSheet] = useState(null); // 'call' | 'keypad'
   const [digits, setDigits] = useState('');
   const [menu, setMenu] = useState(false);
@@ -21,6 +22,14 @@ export default function Calls() {
     { key: 'sched', label: 'Scheduled calls', onSelect: () => nav('/calls/scheduled') },
   ];
   const list = (calls.data || []);
+  const upcoming = (sched.data || []).filter((c) => +new Date(c.at) > Date.now() - 30 * 60000);
+  const whenOf = (at) => {
+    const d = new Date(at), t = new Date(), tm = new Date(); tm.setDate(t.getDate() + 1);
+    const same = (a, b) => a.toDateString() === b.toDateString();
+    const day = same(d, t) ? 'Today' : same(d, tm) ? 'Tomorrow' : d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+    const end = new Date(+d + 30 * 60000), f = (x) => x.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    return `${day}, ${f(d)} – ${f(end)}`;
+  };
 
   const place = async (c, video) => {
     try { const k = await api.placeCall({ name: c.name, avatar: c.avatar, fav: !!c.fav, video: !!video }); calls.setData((d) => [k, ...(d || [])]); notify(`${video ? 'Video calling' : 'Calling'} ${c.name}…`); setSheet(null); }
@@ -39,14 +48,34 @@ export default function Calls() {
         <PageTitle title="Calls" sub="Make, schedule and manage your calls" />
         <div className="qa-row" role="group" aria-label="Call actions">
           <button type="button" className="qa" onClick={() => setSheet('call')}>
-            <span className="qa-ic"><Phone size={30} strokeWidth={2.2} /></span>
+            <span className="qa-ic"><Phone size={22} strokeWidth={2.2} /></span>
             <span className="qa-lb">Call</span>
           </button>
           <button type="button" className="qa" onClick={() => nav('/calls/scheduled?new=1')}>
-            <span className="qa-ic"><CalendarDays size={30} strokeWidth={2.2} /></span>
+            <span className="qa-ic"><CalendarDays size={22} strokeWidth={2.2} /></span>
             <span className="qa-lb">Schedule</span>
           </button>
         </div>
+        {upcoming.length > 0 && (
+          <section aria-label="Upcoming calls">
+            <div className="sec-head" style={{ margin: '14px 0 6px' }}>
+              <h2>Upcoming</h2>
+            </div>
+            {upcoming.map((c) => (
+              <div key={c.id} className="call-row up-row">
+                <span className="avr"><img src={c.avatar} alt="" /></span>
+                <span className="meta">
+                  <span className="nm" style={{ display: 'block' }}>{c.note || `${c.name}'s call`}</span>
+                  <span className="sub up-who">{c.name}</span>
+                  <span className="sub">{whenOf(c.at)}</span>
+                  <button type="button" className="up-join" onClick={() => place(c, !!c.video)}>
+                    {c.video ? <Video size={18} /> : <Phone size={17} />} Join
+                  </button>
+                </span>
+              </div>
+            ))}
+          </section>
+        )}
         <div className="sec-head" style={{ margin: '14px 0 6px' }}>
           <h2>Recent</h2>
         </div>

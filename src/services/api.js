@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as mock from '../data/mock';
+import { canViewContent, selectTab } from '../profile/relations';
 import { streakService } from './streakService';
 import { coupleService } from './coupleService';
 
@@ -45,14 +46,42 @@ const db = {
 };
 // Relationships survive a page reload in demo mode: follow overrides, dismissed suggestions, blocked people
 const REL_KEY = 'smu.rel';
-let rel = { follow: {}, removed: [], blocked: [] };
+let rel = { follow: {}, requested: {}, removed: [], blocked: [] };
 try { const saved = JSON.parse(localStorage.getItem(REL_KEY) || 'null'); if (saved) rel = { ...rel, ...saved }; } catch { /* ignore */ }
 const keepRel = () => { try { localStorage.setItem(REL_KEY, JSON.stringify(rel)); } catch { /* ignore */ } };
+// Posts: the demo feed is generated once; my likes, saves and comments survive a reload
+const POST_KEY = 'smu.posts';
+let postState = { liked: {}, saved: {}, comments: {} };
+try { const saved = JSON.parse(localStorage.getItem(POST_KEY) || 'null'); if (saved) postState = { ...postState, ...saved }; } catch { /* ignore */ }
+const keepPosts = () => { try { localStorage.setItem(POST_KEY, JSON.stringify(postState)); } catch { /* ignore */ } };
+let allPosts = null;
+const feed = () => (allPosts ||= mock.buildPosts());
+const personOf = (id) => db.people.find((x) => x.id === id);
+// may I see this person's posts? (public, or I follow them)
+const canSeeOwner = (ownerId) => { const o = personOf(ownerId); return !o || canViewContent({ isPrivate: o.isPrivate, isFollowing: isFol(o) }); };
+const postView = (p) => {
+  const o = personOf(p.userId);
+  const extra = postState.comments[p.id] || [];
+  const liked = p.id in postState.liked ? postState.liked[p.id] : false;
+  return { id: p.id, userId: p.userId, type: p.type, src: p.src, poster: p.poster, duration: p.duration, caption: p.caption, createdAt: p.createdAt,
+    likes: p.likes + (liked ? 1 : 0), liked, saved: !!postState.saved[p.id], comments: p.comments.length + extra.length,
+    owner: { id: o.id, name: o.name, handle: o.handle, avatar: o.avatar, verified: !!o.verified } };
+};
+const findPost = (id) => {
+  const p = feed().find((x) => x.id === id);
+  if (!p) throw { message: 'This post is no longer available' };
+  if (rel.blocked.includes(p.userId)) throw { message: 'This post isn’t available' };
+  if (!canSeeOwner(p.userId)) throw { message: 'This account is private' };
+  return p;
+};
+// people in someone's followers / following list — derived from the demo people graph
+const idxOf = (id) => db.people.findIndex((x) => x.id === id);
+const graph = (id, mod) => db.people.filter((p) => p.id !== id && !rel.blocked.includes(p.id) && (idxOf(p.id) + idxOf(id)) % mod === 0);
 const parseCnt = (v) => (/k$/i.test(String(v)) ? Math.round(parseFloat(v) * 1000) : parseInt(String(v).replace(/,/g, ''), 10) || 0);
 const fmtCnt = (n) => (n >= 1000 ? `${(Math.round(n / 100) / 10).toString().replace(/\.0$/, '')}K` : String(n));
 const isFol = (p) => (p.id in rel.follow ? rel.follow[p.id] : !!p.isFollowing);
 // a person as the current user sees them: live follow state and follower count
-const relView = (p) => ({ ...p, isFollowing: isFol(p), followers: fmtCnt(parseCnt(p.followers) + (isFol(p) ? 1 : 0) - (p.isFollowing ? 1 : 0)) });
+const relView = (p) => ({ ...p, isFollowing: isFol(p), requested: !isFol(p) && !!rel.requested[p.id], followers: fmtCnt(parseCnt(p.followers) + (isFol(p) ? 1 : 0) - (p.isFollowing ? 1 : 0)) });
 const findPerson = (id) => {
   if (id === db.me.id) throw { message: 'That is you' };
   const p = db.people.find((x) => x.id === id);
@@ -161,21 +190,45 @@ export const api = {
     return db.people.filter((p) => !rel.blocked.includes(p.id) && !(params?.suggestions && rel.removed.includes(p.id)) && (!c || p.interests.includes(c))).map(relView);
   }),
   userProfile: (id) => call(() => http.get(`/users/${id}/profile`), () => {
-    const p = db.people.find((x) => x.id === id);
+    const p = personOf(id);
+    if (!p) throw { message: 'This profile could not be found' };
+    // a profile I blocked shows only who it is, with a way to unblock; nothing else is exposed
+    if (rel.blocked.includes(id)) return { id: p.id, name: p.name, handle: p.handle, avatar: p.avatar, blocked: true };
+    const v = relView(p);
+    return { ...v, posts: feed().filter((x) => x.userId === id).length, canView: canViewContent({ isPrivate: p.isPrivate, isFollowing: v.isFollowing }) };
+  }),
+  // tab: posts | reels | tagged. A private account's content is locked until the follow request is accepted.
+  userPosts: (id, tab = 'posts') => call(() => http.get(`/users/${id}/posts`, { params: { tab } }), () => {
+    const p = personOf(id);
     if (!p) throw { message: 'This profile could not be found' };
     if (rel.blocked.includes(id)) throw { message: 'This profile isn’t available' };
-    return relView(p);
+    if (!canSeeOwner(id)) return { locked: true, items: [] };
+    return { locked: false, items: selectTab(feed(), tab, id, (o) => !rel.blocked.includes(o) && canSeeOwner(o)).map(postView) };
   }),
-  // idempotent: following someone twice never creates a second relationship
+  userFollowers: (id) => call(() => http.get(`/users/${id}/followers`), () => {
+    const p = personOf(id); if (!p) throw { message: 'This profile could not be found' };
+    if (!canSeeOwner(id)) throw { message: 'This account is private' };
+    const list = graph(id, 2).map(relView);
+    return isFol(p) ? [{ ...db.me, isMe: true }, ...list] : list;
+  }),
+  userFollowing: (id) => call(() => http.get(`/users/${id}/following`), () => {
+    const p = personOf(id); if (!p) throw { message: 'This profile could not be found' };
+    if (!canSeeOwner(id)) throw { message: 'This account is private' };
+    const list = graph(id, 3).map(relView);
+    return p.follower ? [{ ...db.me, isMe: true }, ...list] : list;
+  }),
+  // idempotent: following someone twice never creates a second relationship. A private account gets a request instead.
   follow: (id) => call(() => http.post(`/users/${id}/follow`), () => {
     const p = findPerson(id);
     if (rel.blocked.includes(id)) throw { message: 'This profile isn’t available' };
-    rel.follow[id] = true; keepRel();
-    return { following: true, followers: relView(p).followers };
+    if (p.isPrivate && !isFol(p)) { rel.requested[id] = true; keepRel(); return { following: false, requested: true, followers: relView(p).followers }; }
+    rel.follow[id] = true; delete rel.requested[id]; keepRel();
+    return { following: true, requested: false, followers: relView(p).followers };
   }),
+  // also cancels a pending request
   unfollow: (id) => call(() => http.delete(`/users/${id}/follow`), () => {
-    const p = findPerson(id); rel.follow[id] = false; keepRel();
-    return { following: false, followers: relView(p).followers };
+    const p = findPerson(id); rel.follow[id] = false; delete rel.requested[id]; keepRel();
+    return { following: false, requested: false, followers: relView(p).followers };
   }),
   // hides one person from "People you know"; the account and any follow relationship are untouched
   dismissSuggestion: (id) => call(() => http.delete(`/suggestions/${id}`), () => {
@@ -183,7 +236,30 @@ export const api = {
   }),
   blockUser: (id) => call(() => http.post(`/users/${id}/block`), () => {
     findPerson(id); if (!rel.blocked.includes(id)) rel.blocked.push(id);
-    rel.follow[id] = false; keepRel(); return { blocked: true };
+    rel.follow[id] = false; delete rel.requested[id]; keepRel(); return { blocked: true };
+  }),
+  unblockUser: (id) => call(() => http.delete(`/users/${id}/block`), () => {
+    findPerson(id); rel.blocked = rel.blocked.filter((x) => x !== id); keepRel(); return { blocked: false };
+  }),
+  // follow requests I have received (server only: the demo has no incoming requests)
+  followRequests: () => call(() => http.get('/follow-requests'), () => []),
+  respondFollowRequest: (id, accept) => call(() => (accept ? http.post(`/follow-requests/${id}/accept`) : http.delete(`/follow-requests/${id}`)), () => ({ ok: true })),
+  // post interactions
+  likePost: (id) => call(() => http.post(`/posts/${id}/like`), () => { const p = findPost(id); postState.liked[id] = true; keepPosts(); return { liked: true, likes: postView(p).likes }; }),
+  unlikePost: (id) => call(() => http.delete(`/posts/${id}/like`), () => { const p = findPost(id); postState.liked[id] = false; keepPosts(); return { liked: false, likes: postView(p).likes }; }),
+  savePost: (id) => call(() => http.post(`/posts/${id}/save`), () => { findPost(id); postState.saved[id] = true; keepPosts(); return { saved: true }; }),
+  unsavePost: (id) => call(() => http.delete(`/posts/${id}/save`), () => { findPost(id); delete postState.saved[id]; keepPosts(); return { saved: false }; }),
+  postComments: (id) => call(() => http.get(`/posts/${id}/comments`), () => {
+    const p = findPost(id);
+    return [...p.comments, ...(postState.comments[id] || [])].sort((a, b) => new Date(a.at) - new Date(b.at));
+  }),
+  commentPost: (id, text) => call(() => http.post(`/posts/${id}/comments`, { text }), () => {
+    findPost(id);
+    const t = String(text || '').trim();
+    if (!t) throw { message: 'Write a comment first' };
+    if (t.length > 500) throw { message: 'Comments can be up to 500 characters' };
+    const c = { id: uid(), userId: db.me.id, name: db.me.name, avatar: db.me.avatar, text: t, at: new Date().toISOString() };
+    (postState.comments[id] ||= []).push(c); keepPosts(); return c;
   }),
   directChat: (id) => call(() => http.post('/conversations/direct', { userId: id }), () => { findPerson(id); return chatFor(id); }),
   addFriend: (id) => call(() => http.post(`/friends/${id}`), () => ({ requested: true })),
