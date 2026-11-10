@@ -826,9 +826,9 @@ body { background: #f3ebd8; }
 .ci-hero h1 { font-size: 24px; font-weight: 700; margin-top: 14px; line-height: 1.2; }
 .ci-sub { color: var(--muted); font-size: 15px; margin-top: 4px; }
 .ci-sub.small { font-size: 13px; margin-top: 2px; }
-.ci-actions { display: flex; gap: 12px; margin-top: 18px; width: 100%; justify-content: center; }
-.ci-actions button { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); min-width: 66px; }
-.ci-actions button span { width: 62px; height: 46px; border-radius: 23px; display: grid; place-items: center; background: var(--card); border: 1px solid var(--line); color: var(--text); transition: transform .12s; }
+.ci-actions { display: flex; gap: 8px; margin-top: 18px; width: 100%; justify-content: center; }
+.ci-actions button { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); min-width: 60px; }
+.ci-actions button span { width: 58px; height: 46px; border-radius: 23px; display: grid; place-items: center; background: var(--card); border: 1px solid var(--line); color: var(--text); transition: transform .12s; }
 .ci-actions button:active span { transform: scale(.94); }
 .ci-card { margin: 8px 12px 0; background: var(--card); border-radius: 20px; box-shadow: var(--shadow); overflow: hidden; }
 .ci-sec { padding: 14px 16px 4px; font-size: 13px; color: var(--muted); font-weight: 600; }

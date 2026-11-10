@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, MoreVertical, Phone, Video, Search, MessageCircle, Share2, Bell, Image as Img, Lock, Palette, Star, Ban, ThumbsDown, AtSign, MapPin, Info, Users, UserPlus, Heart, Calendar, ChevronRight, X, Check as Tick } from 'lucide-react';
+import { ArrowLeft, MoreVertical, Phone, Video, Search, MessageCircle, Share2, Bell, Image as Img, Lock, Palette, Star, Ban, ThumbsDown, AtSign, User, MapPin, Info, Users, UserPlus, Heart, Calendar, ChevronRight, X, Check as Tick } from 'lucide-react';
 import { Modal, Button, TextField, DropMenu, ErrorState, ListSkeleton, useAsync } from '../components/ui';
 import { api, errMsg } from '../services/api';
 import { useAuth, useUI, useMenu, useChatPrefs, isMuted } from '../store';
@@ -94,6 +94,7 @@ export default function ContactInfo() {
             <button onClick={() => notify('Calling…')}><span><Phone size={22} /></span>Audio</button>
             <button onClick={() => notify('Video calling…')}><span><Video size={22} /></span>Video</button>
             <button onClick={() => nav(`/chats/${id}?search=1`)}><span><Search size={22} /></span>Search</button>
+            {person && <button onClick={() => nav(`/people/${person.id}`)}><span><User size={22} /></span>Profile</button>}
           </div>
         </section>
 
