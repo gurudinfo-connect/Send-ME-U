@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Video, Phone, MoreVertical, Smile, Paperclip, Mic, Send, Play, Pause, Check, CheckCheck, Image as Img, Camera, MapPin, Trash2, X, Users, Search, Forward, Lock, ArrowLeft, Heart, Star, BellOff, ChevronUp, ChevronDown, Check as Tick } from 'lucide-react';
+import { Video, Phone, MoreVertical, Smile, Keyboard, Paperclip, Mic, Send, Play, Pause, Check, CheckCheck, Image as Img, Trash2, X, Users, Search, Forward, Lock, ArrowLeft, Heart, Star, BellOff, ChevronUp, ChevronDown, Check as Tick } from 'lucide-react';
 import { AppHeader, Avatar, Modal, Button, ErrorState, Empty, ListSkeleton, fmtTime, useAsync, TextField, DropMenu, GlassTabs, ProfilePreview } from '../components/ui';
 import { api, errMsg } from '../services/api';
 import { getSocket, emitTyping, joinRoom, leaveRoom } from '../services/socket';
 import { useUI, useMenu, useChatPrefs, isMuted } from '../store';
 import { useStreak, useStreakEvents } from '../streaks/hooks';
 import { StreakBar, Celebration, shareMilestoneCard } from '../streaks/components';
+import { EmojiPanel, AttachSheet } from '../chat/ChatPanels';
 
-const EMOJI = ['😀', '😍', '😂', '😊', '😢', '😮', '👍', '🙏', '🎉', '🔥', '❤️', '💜'];
 const REACTIONS = ['❤️', '😂', '😮', '😢', '👍', '🔥'];
 const BARS = [8, 16, 11, 20, 14, 22, 10, 18, 12, 20, 9, 15, 21, 11, 17, 8, 14, 19, 10, 13];
 
@@ -192,6 +192,33 @@ export function Chat() {
     try { const m = await api.sendMedia(id, f, type); setMsgs((c) => [...c, m]); stick.current = true; } catch (er) { notify(errMsg(er)); }
   };
 
+  const sendFiles = async (files) => {
+    setMenu(false);
+    for (const f of files) {
+      const type = f.type.startsWith('video') ? 'video' : f.type.startsWith('image') ? 'image' : null;
+      if (!type) { notify('Only photos and videos can be sent for now'); continue; }
+      try { const m = await api.sendMedia(id, f, type); setMsgs((c) => [...c, m]); stick.current = true; } catch (er) { notify(errMsg(er)); }
+    }
+  };
+  const sendLocation = () => {
+    setMenu(false);
+    navigator.geolocation?.getCurrentPosition(async (p) => {
+      try { const m = await api.sendMessage(id, { type: 'text', text: `📍 https://maps.google.com/?q=${p.coords.latitude},${p.coords.longitude}` }); setMsgs((c2) => [...c2, m]); stick.current = true; } catch (er) { notify(errMsg(er)); }
+    }, () => notify('Location unavailable'));
+  };
+  const sendContact = async (name, phone) => {
+    setMenu(false);
+    try { const m = await api.sendMessage(id, { type: 'text', text: `👤 ${name}${phone ? `\n📞 ${phone}` : ''}` }); setMsgs((c2) => [...c2, m]); stick.current = true; } catch (er) { notify(errMsg(er)); }
+  };
+  const backspace = () => setText((t) => {
+    const parts = typeof Intl !== 'undefined' && Intl.Segmenter ? Array.from(new Intl.Segmenter().segment(t), (x) => x.segment) : Array.from(t);
+    parts.pop(); return parts.join('');
+  });
+  const toggleEmoji = () => {
+    if (emoji) { setEmoji(false); inputRef.current?.focus(); return; }
+    setMenu(false); setEmoji(true); inputRef.current?.blur();
+  };
+
   // voice recording
   useEffect(() => {
     if (!rec) return;
@@ -258,6 +285,7 @@ export function Chat() {
   };
 
   const mainItems = [
+    { key: 'video', label: 'Video call', onSelect: () => notify('Video calling…') },
     ...(direct ? [{ key: 'contact', label: pref.contact ? 'Edit contact' : 'Add to contacts', onSelect: openContact }] : []),
     { key: 'search', label: 'Search', onSelect: () => { setSearching(true); setSq(''); } },
     { key: 'report', label: 'Report', onSelect: () => { setReason(REASONS[0]); setAlsoBlock(false); setSheet('report'); } },
@@ -279,23 +307,26 @@ export function Chat() {
   return (
     <div className="screen chat-bg" style={wall ? { background: theme === 'dark' ? wall.dark : wall.light } : undefined}>
       {c && pv && <ProfilePreview contact={{ id, name: c.name, avatar: c.avatar }} from={pv} onClose={() => setPv(null)} />}
-      <header className="chat-head">
-        <button className="icon-btn" aria-label="Back" onClick={() => nav(-1)}><ArrowLeft size={26} /></button>
-        <div className="head-open" role="group" aria-label={`${c?.name || 'contact'} header`}>
-          {c && <button className="head-av" aria-label={`View ${c.name} profile picture`} onClick={(e) => setPv(e.currentTarget.querySelector('img').getBoundingClientRect())}><span style={{ position: 'relative', display: 'inline-flex' }}><img src={c.avatar} alt="" style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover' }} />{c.online && <i className="dot-online" style={{ width: 14, height: 14, right: 0, bottom: 2 }} />}</span></button>}
+      <header className="chat-head cv-head">
+        <button className="cv-circle" aria-label="Back" onClick={() => nav(-1)}><ArrowLeft size={28} /></button>
+        <div className="head-open cv-headpill" role="group" aria-label={`${c?.name || 'contact'} header`}>
+          {c && <button className="head-av" aria-label={`View ${c.name} profile picture`} onClick={(e) => setPv(e.currentTarget.querySelector('img').getBoundingClientRect())}><span style={{ position: 'relative', display: 'inline-flex' }}><img src={c.avatar} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} />{c.online && <i className="dot-online" style={{ width: 13, height: 13, right: 0, bottom: 1 }} />}</span></button>}
           <button className="head-name" aria-label={`Open ${c?.name || 'contact'} info`} onClick={() => c && nav(`/chats/${id}/info`)}>
             <div className="who">
               <b>{c?.name}{c?.heart && ' ❤️'}{muted && <BellOff size={14} aria-label="Muted" style={{ marginLeft: 6, opacity: .7 }} />}</b>
-              <small style={typing ? { color: '#1236c9' } : undefined}>{typing ? 'typing…' : c?.type === 'group' ? 'Group · tap for info' : c?.online ? 'Online' : 'Last seen recently'}</small>
+              {typing
+                ? <small className="cv-status on"><span className="cv-dots" aria-hidden><i /><i /><i /></span> typing</small>
+                : <small className={`cv-status ${c?.online ? 'on' : ''}`}>{c?.type === 'group' ? 'Group · tap for info' : c?.online ? 'online' : 'last seen recently'}</small>}
             </div>
           </button>
         </div>
-        <button className="icon-btn" aria-label="Voice call" onClick={() => notify('Calling…')}><Phone size={26} /></button>
-        <button className="icon-btn" aria-label="Video call" onClick={() => notify('Video calling…')}><Video size={28} /></button>
-        <span className="more-wrap">
-          <button className="icon-btn" aria-label="More" aria-haspopup="menu" aria-expanded={dd} onClick={() => { setSub('main'); setDd((v) => !v); }}><MoreVertical size={26} /></button>
-          <DropMenu open={dd} onClose={closeMenu} items={sub === 'more' ? moreItems : mainItems} label="Chat menu" />
-        </span>
+        <div className="cv-actions">
+          <button className="cv-hbtn" aria-label="Voice call" onClick={() => notify('Calling…')}><Phone size={27} /></button>
+          <span className="more-wrap">
+            <button className="cv-hbtn" aria-label="More" aria-haspopup="menu" aria-expanded={dd} onClick={() => { setSub('main'); setDd((v) => !v); }}><MoreVertical size={27} /></button>
+            <DropMenu open={dd} onClose={closeMenu} items={sub === 'more' ? moreItems : mainItems} label="Chat menu" />
+          </span>
+        </div>
       </header>
       {direct && !blocked && <StreakBar s={streak.data} onMessage={() => inputRef.current?.focus()} onPhoto={() => pick('image')} />}
       {cel && <Celebration event={cel} friendName={c?.name || 'your friend'} onClose={() => setCel(null)} onShare={() => shareMilestoneCard({ days: cel.count, friendName: c?.name || 'a friend' }).then((r) => r === 'saved' && notify('Card saved'))} />}
@@ -320,38 +351,30 @@ export function Chat() {
         {typing && <div className="mrow"><img className="mav" src={c?.avatar} alt="" /><div className="typing" aria-label="Typing" style={{ alignSelf: 'auto' }}><i /><i /><i /></div></div>}
       </div>
 
-      {menu && (
-        <div className="attach-menu">
-          {[['Gallery', Img, '#1236c9', 'image'], ['Camera', Camera, '#ff8a00', 'camera'], ['Video', Video, '#2f6bff', 'video'], ['Location', MapPin, '#14c8b0', 'loc']].map(([l, I, bg, k]) => (
-            <button key={l} onClick={() => (k === 'loc' ? (setMenu(false), navigator.geolocation?.getCurrentPosition(async (p) => { const m = await api.sendMessage(id, { type: 'text', text: `📍 https://maps.google.com/?q=${p.coords.latitude},${p.coords.longitude}` }); setMsgs((c2) => [...c2, m]); }, () => notify('Location unavailable'))) : pick(k))}>
-              <span className="ic" style={{ background: bg }}><I size={20} /></span>{l}
-            </button>
-          ))}
-        </div>
-      )}
-      {emoji && <div className="emoji-bar" role="list">{EMOJI.map((e) => <button key={e} role="listitem" onClick={() => setText((t) => t + e)}>{e}</button>)}</div>}
+      {menu && <AttachSheet onClose={() => setMenu(false)} onSend={sendFiles} onCamera={() => pick('camera')} onLocation={sendLocation} onContact={sendContact} notify={notify} />}
       <input ref={fileRef} type="file" hidden onChange={onFile} />
 
       {blocked ? (
         <div className="block-bar"><span>You blocked {c?.name}. Unblock to send messages.</span><Button className="btn-sm" onClick={() => { setPref(id, { blocked: false }); notify('Contact unblocked'); }}>Unblock</Button></div>
       ) : rec ? (
-        <div className="composer">
-          <button className="icon-btn" aria-label="Cancel recording" onClick={() => stopRec(true)}><Trash2 size={22} color="#ff3b5c" /></button>
-          <div className="input" style={{ justifyContent: 'center', color: '#ff3b5c' }}>● Recording 0:{String(rec.secs).padStart(2, '0')}</div>
-          <button className="mic rec" aria-label="Send voice message" onClick={() => stopRec(false)}><Send size={20} /></button>
+        <div className="composer cv">
+          <div className="cv-pill">
+            <button type="button" aria-label="Cancel recording" onClick={() => stopRec(true)}><Trash2 size={24} color="#ff3b5c" /></button>
+            <span className="cv-rec">● Recording 0:{String(rec.secs).padStart(2, '0')}</span>
+            <button type="button" className="cv-mic rec" aria-label="Send voice message" onClick={() => stopRec(false)}><Send size={22} /></button>
+          </div>
         </div>
       ) : (
-        <div className="composer">
-          <label className="input">
-            <button type="button" aria-label="Emoji" onClick={() => { setEmoji(!emoji); setMenu(false); }}><Smile size={30} /></button>
-            <i className="caret" aria-hidden />
-            <input ref={inputRef} placeholder="Type a message..." value={text} onChange={(e) => onType(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} />
-            <button type="button" aria-label="Attach" onClick={() => { setMenu(!menu); setEmoji(false); }}><Paperclip size={26} /></button>
-            <button type="button" aria-label="Camera" onClick={() => pick('camera')}><Camera size={28} /></button>
-          </label>
-          {text.trim() ? <button className="mic" aria-label="Send" onClick={send}><Send size={24} /></button> : <button className="mic" aria-label="Record voice message" onClick={startRec}><Mic size={26} /></button>}
+        <div className={`composer cv ${emoji ? 'with-panel' : ''}`}>
+          <div className="cv-pill">
+            <button type="button" aria-label={emoji ? 'Show keyboard' : 'Emoji'} onClick={toggleEmoji}>{emoji ? <Keyboard size={30} strokeWidth={1.8} /> : <Smile size={30} strokeWidth={1.8} />}</button>
+            <input ref={inputRef} placeholder="Message" aria-label="Message" value={text} onFocus={() => setEmoji(false)} onChange={(e) => onType(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()} />
+            {!text.trim() && <button type="button" aria-label="Attach" onClick={() => { setMenu(!menu); setEmoji(false); }}><Paperclip size={28} strokeWidth={1.8} /></button>}
+            {text.trim() ? <button type="button" className="cv-mic" aria-label="Send" onClick={send}><Send size={24} /></button> : <button type="button" className="cv-mic" aria-label="Record voice message" onClick={startRec}><Mic size={28} /></button>}
+          </div>
         </div>
       )}
+      {emoji && !blocked && !rec && <EmojiPanel onPick={(e) => setText((t) => t + e)} onBackspace={backspace} notify={notify} />}
 
       <Modal open={!!react} onClose={() => setReact(null)} title="React">
         <div style={{ display: 'flex', justifyContent: 'space-around', fontSize: 30 }}>{REACTIONS.map((e) => <button key={e} onClick={() => doReact(e)} aria-label={`React ${e}`}>{e}</button>)}</div>
