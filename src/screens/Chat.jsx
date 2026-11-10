@@ -139,11 +139,14 @@ export function Chat() {
   const chunks = useRef([]);
   const stick = useRef(true);
 
+  // append a message once: the send call, a socket echo and a refetch can all deliver the same message
+  const addMsg = useCallback((m) => setMsgs((c) => (c.some((x) => x.id === m.id) ? c : [...c, m])), []);
+
   const load = useCallback(async (p) => {
     try {
       const r = await api.messages(id, p);
       const items = r.items || r;
-      setMsgs((cur) => (p === 1 ? items : [...items, ...cur]));
+      setMsgs((cur) => (p === 1 ? [...items] : [...items, ...cur.filter((x) => !items.some((i) => i.id === x.id))]));
       setHasMore(!!r.hasMore); setPage(p); setError('');
     } catch (e) { setError(errMsg(e)); } finally { setLoading(false); }
   }, [id]);
@@ -153,7 +156,7 @@ export function Chat() {
   useEffect(() => {
     const s = getSocket(); if (!s) return;
     joinRoom(id);
-    const onNew = (m) => { if (m.conversationId === id || !m.conversationId) { setMsgs((c) => [...c, m]); stick.current = true; } };
+    const onNew = (m) => { if (m.conversationId === id || !m.conversationId) { addMsg(m); stick.current = true; } };
     const onStatus = ({ id: mid, status }) => setMsgs((c) => c.map((m) => (m.id === mid ? { ...m, status } : m)));
     const onTyping = ({ conversationId, on }) => conversationId === id && setTyping(on);
     const onReact = ({ messageId, emoji: e }) => setMsgs((c) => c.map((m) => (m.id === messageId ? { ...m, reaction: e } : m)));
@@ -171,7 +174,7 @@ export function Chat() {
   const send = async () => {
     const t = text.trim(); if (!t) return;
     setText(''); setEmoji(false); emitTyping(id, false); stick.current = true;
-    try { const m = await api.sendMessage(id, { type: 'text', text: t }); setMsgs((c) => [...c, m]); simulateReply(); }
+    try { const m = await api.sendMessage(id, { type: 'text', text: t }); addMsg(m); simulateReply(); }
     catch (e) { setText(t); notify(errMsg(e)); }
   };
   // demo-mode nicety so typing/real-time UI is visible without a backend
@@ -189,7 +192,7 @@ export function Chat() {
   const onFile = async (e) => {
     const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
     const type = f.type.startsWith('video') ? 'video' : 'image';
-    try { const m = await api.sendMedia(id, f, type); setMsgs((c) => [...c, m]); stick.current = true; } catch (er) { notify(errMsg(er)); }
+    try { const m = await api.sendMedia(id, f, type); addMsg(m); stick.current = true; } catch (er) { notify(errMsg(er)); }
   };
 
   const sendFiles = async (files) => {
@@ -197,18 +200,18 @@ export function Chat() {
     for (const f of files) {
       const type = f.type.startsWith('video') ? 'video' : f.type.startsWith('image') ? 'image' : null;
       if (!type) { notify('Only photos and videos can be sent for now'); continue; }
-      try { const m = await api.sendMedia(id, f, type); setMsgs((c) => [...c, m]); stick.current = true; } catch (er) { notify(errMsg(er)); }
+      try { const m = await api.sendMedia(id, f, type); addMsg(m); stick.current = true; } catch (er) { notify(errMsg(er)); }
     }
   };
   const sendLocation = () => {
     setMenu(false);
     navigator.geolocation?.getCurrentPosition(async (p) => {
-      try { const m = await api.sendMessage(id, { type: 'text', text: `📍 https://maps.google.com/?q=${p.coords.latitude},${p.coords.longitude}` }); setMsgs((c2) => [...c2, m]); stick.current = true; } catch (er) { notify(errMsg(er)); }
+      try { const m = await api.sendMessage(id, { type: 'text', text: `📍 https://maps.google.com/?q=${p.coords.latitude},${p.coords.longitude}` }); addMsg(m); stick.current = true; } catch (er) { notify(errMsg(er)); }
     }, () => notify('Location unavailable'));
   };
   const sendContact = async (name, phone) => {
     setMenu(false);
-    try { const m = await api.sendMessage(id, { type: 'text', text: `👤 ${name}${phone ? `\n📞 ${phone}` : ''}` }); setMsgs((c2) => [...c2, m]); stick.current = true; } catch (er) { notify(errMsg(er)); }
+    try { const m = await api.sendMessage(id, { type: 'text', text: `👤 ${name}${phone ? `\n📞 ${phone}` : ''}` }); addMsg(m); stick.current = true; } catch (er) { notify(errMsg(er)); }
   };
   const backspace = () => setText((t) => {
     const parts = typeof Intl !== 'undefined' && Intl.Segmenter ? Array.from(new Intl.Segmenter().segment(t), (x) => x.segment) : Array.from(t);
@@ -240,7 +243,7 @@ export function Chat() {
       mr.stream.getTracks().forEach((t) => t.stop());
       if (cancel || secs < 1) return;
       const file = new File(chunks.current, 'voice.webm', { type: 'audio/webm' });
-      try { const m = await api.sendMedia(id, file, 'voice'); m.duration = `0:${String(secs).padStart(2, '0')}`; setMsgs((c) => [...c, m]); } catch (er) { notify(errMsg(er)); }
+      try { const m = await api.sendMedia(id, file, 'voice'); m.duration = `0:${String(secs).padStart(2, '0')}`; addMsg(m); } catch (er) { notify(errMsg(er)); }
     };
     mr.stop();
   };
