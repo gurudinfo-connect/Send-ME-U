@@ -2125,3 +2125,28 @@ button.ef-row { cursor: pointer; }
 [data-theme='dark'] .as-tabs button { color: #f1f1f6; }
 .as-tabs button.on { background: color-mix(in srgb, var(--cv-accent) 24%, transparent); color: var(--cv-accent); }
 @media (prefers-reduced-motion: reduce) { .cv-panel, .as-sheet, .as-scrim, .cv-dots i { animation: none; } }
+
+/* The ⋮ menu's full-screen click-away layer is position:fixed. A backdrop-filter on any ancestor would trap it
+   inside that ancestor, so the pill that holds the menu must not blur (keeps tap-anywhere-to-close working). */
+.cv-actions, .screen.chat-bg > .chat-head.cv-head { backdrop-filter: none; -webkit-backdrop-filter: none; filter: none; transform: none; }
+
+/* ===== Chat header: always show the full name + status on every screen width (Android / iOS / small phones) ===== */
+.screen.chat-bg > .chat-head.cv-head { gap: 8px; padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); align-items: center; }
+.cv-circle { width: 52px; height: 52px; }
+.screen.chat-bg .cv-headpill { height: auto; min-height: 52px; padding: 4px 12px 4px 4px; gap: 10px; }
+.cv-headpill .head-av img { width: 44px !important; height: 44px !important; }
+.cv-headpill .head-name { min-width: 0; }
+.screen.chat-bg .cv-headpill .who { min-width: 0; }
+.screen.chat-bg .cv-headpill .who b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; white-space: normal; overflow-wrap: anywhere; font-size: clamp(15px, 4.3vw, 17px); line-height: 1.2; }
+.screen.chat-bg .cv-headpill .who small.cv-status { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; white-space: normal; text-overflow: clip; overflow-wrap: anywhere; font-size: clamp(11.5px, 3.3vw, 13.5px); line-height: 1.2; }
+.cv-actions { height: 52px; padding: 0 4px; gap: 0; }
+.cv-hbtn { width: 42px; height: 42px; }
+.cv-hbtn svg { width: 24px; height: 24px; }
+.cv-circle svg { width: 26px; height: 26px; }
+@media (max-width: 340px) {
+  .cv-circle { width: 44px; height: 44px; }
+  .cv-actions { height: 44px; }
+  .cv-hbtn { width: 36px; height: 36px; }
+  .cv-headpill .head-av img { width: 38px !important; height: 38px !important; }
+  .screen.chat-bg .cv-headpill { min-height: 44px; padding-right: 8px; gap: 8px; }
+}
