@@ -2098,32 +2098,6 @@ button.ef-row { cursor: pointer; }
 .cv-del { position: absolute; right: 14px; width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; background: var(--cv-surface); border: 1px solid var(--cv-line); color: var(--cv-ink); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
 .cv-del:active { transform: scale(.92); }
 
-/* attachment sheet */
-.as-scrim { position: absolute; inset: 0; z-index: 40; background: rgba(0, 0, 0, .45); animation: cvFade .18s ease-out; }
-.as-sheet { position: absolute; left: 0; right: 0; bottom: 0; height: 68%; z-index: 41; display: flex; flex-direction: column; background: var(--cv-panel); border-radius: 28px 28px 0 0; overflow: hidden; animation: cvUp .2s ease-out; color: var(--cv-ink); }
-.as-body { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 120px; scrollbar-width: none; }
-.as-body::-webkit-scrollbar { display: none; }
-.as-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
-.as-tile { position: relative; aspect-ratio: 1; overflow: hidden; background: #0b0b0d; display: block; padding: 0; }
-.as-tile img, .as-tile video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.as-cam { display: grid; place-items: center; color: #fff; background: radial-gradient(120% 100% at 30% 20%, #1c2a22, #060807); border-top-left-radius: 28px; }
-.as-add { display: grid; place-items: center; align-content: center; gap: 6px; color: var(--cv-accent); background: var(--cv-field); font-size: 14px; font-weight: 600; }
-.as-circ { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border-radius: 50%; border: 2.5px solid #fff; display: grid; place-items: center; color: #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, .25); }
-.as-circ.on { background: var(--cv-accent); border-color: var(--cv-accent); }
-.as-card { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 46px 28px 0; }
-.as-card b { font-size: 19px; }
-.as-card p { color: var(--cv-sub); font-size: 14.5px; margin: 0 0 8px; }
-.as-bigic { width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; background: var(--cv-chip); color: var(--cv-accent); margin-bottom: 6px; }
-.as-form input { width: 100%; max-width: 340px; height: 50px; border-radius: 16px; border: 1px solid var(--cv-line); background: var(--cv-field); color: var(--cv-ink); padding: 0 16px; font-size: 16px; outline: 0; }
-.as-form input:focus { border-color: var(--cv-accent); }
-.as-cta { height: 50px; padding: 0 28px; border-radius: 999px; background: var(--cv-accent); color: #fff; font-weight: 600; font-size: 16px; }
-.as-cta:disabled { opacity: .45; }
-.as-send { position: absolute; right: 18px; bottom: calc(112px + var(--safe-bottom)); height: 50px; padding: 0 26px; border-radius: 999px; background: var(--cv-accent); color: #fff; font-size: 16px; font-weight: 600; box-shadow: 0 8px 20px rgba(0, 0, 0, .3); z-index: 2; }
-.as-tabs { position: absolute; left: 14px; right: 14px; bottom: calc(14px + var(--safe-bottom)); display: flex; gap: 2px; padding: 8px; border-radius: 999px; background: rgba(62, 62, 68, .88); border: 1px solid rgba(255, 255, 255, .08); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
-:root:not([data-theme='dark']) .as-tabs { background: rgba(255, 255, 255, .92); border-color: var(--cv-line); box-shadow: 0 8px 22px rgba(30, 40, 100, .16); }
-.as-tabs button { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px 8px; border-radius: 999px; color: var(--cv-ink); font-size: 14.5px; font-weight: 500; }
-[data-theme='dark'] .as-tabs button { color: #f1f1f6; }
-.as-tabs button.on { background: color-mix(in srgb, var(--cv-accent) 24%, transparent); color: var(--cv-accent); }
 @media (prefers-reduced-motion: reduce) { .cv-panel, .as-sheet, .as-scrim, .cv-dots i { animation: none; } }
 
 /* The ⋮ menu's full-screen click-away layer is position:fixed. A backdrop-filter on any ancestor would trap it
@@ -2150,3 +2124,58 @@ button.ef-row { cursor: pointer; }
   .cv-headpill .head-av img { width: 38px !important; height: 38px !important; }
   .screen.chat-bg .cv-headpill { min-height: 44px; padding-right: 8px; gap: 8px; }
 }
+
+/* ===== Attach sheet v2 (action grid + photo grid) ===== */
+.as-sheet { height: 84%; }
+.as-handle { flex: none; display: grid; place-items: center; width: 100%; padding: 12px 0 8px; }
+.as-handle i { width: 54px; height: 5px; border-radius: 3px; background: var(--cv-sub); opacity: .7; }
+.as-body { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 100px; scrollbar-width: none; }
+.as-body::-webkit-scrollbar { display: none; }
+.as-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 8px; padding: 10px 14px 18px; }
+.as-act { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; font-size: clamp(12.5px, 3.5vw, 15px); color: var(--cv-sub); }
+.as-actic { width: 100%; max-width: 100px; height: 52px; border-radius: 999px; border: 1px solid var(--cv-line); background: var(--cv-field); display: grid; place-items: center; }
+.as-act:active .as-actic { transform: scale(.95); }
+.as-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; }
+.as-tile { position: relative; aspect-ratio: 1; overflow: hidden; background: var(--cv-field); display: block; padding: 0; }
+.as-tile img, .as-tile video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.as-cam { display: grid; place-items: center; align-content: center; gap: 8px; color: #ffd23f; border: 1px solid var(--cv-line); font-size: 15px; }
+.as-cam span, .as-add span { color: var(--cv-sub); font-size: 13px; text-align: center; padding: 0 4px; }
+.as-add { display: grid; place-items: center; align-content: center; gap: 6px; color: var(--cv-accent); }
+.as-circ { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid #fff; display: grid; place-items: center; color: #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, .25); }
+.as-circ.on { background: var(--cv-accent); border-color: var(--cv-accent); }
+.as-card { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 6px 28px 0; }
+.as-card b { font-size: 19px; }
+.as-bigic { width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; background: var(--cv-chip); color: var(--cv-accent); margin: 8px 0 2px; }
+.as-back { align-self: flex-start; display: inline-flex; align-items: center; gap: 2px; margin-left: -10px; padding: 6px 10px; color: var(--cv-sub); font-size: 15px; }
+.as-form input { width: 100%; max-width: 340px; height: 50px; border-radius: 16px; border: 1px solid var(--cv-line); background: var(--cv-field); color: var(--cv-ink); padding: 0 16px; font-size: 16px; outline: 0; }
+.as-form input:focus { border-color: var(--cv-accent); }
+.as-cta { height: 50px; padding: 0 28px; border-radius: 999px; background: var(--cv-accent); color: #fff; font-weight: 600; font-size: 16px; margin-top: 4px; }
+.as-cta:disabled { opacity: .45; }
+.as-send { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(18px + var(--safe-bottom)); height: 54px; padding: 0 30px; border-radius: 999px; background: var(--cv-accent); color: #fff; font-size: 16px; font-weight: 600; white-space: nowrap; box-shadow: 0 10px 26px rgba(0, 0, 0, .4); z-index: 2; }
+
+/* ===== Sent pictures: show the WHOLE picture (no forced wide crop) ===== */
+.bubble.media-card.pic { width: min(78%, 320px); max-width: 78%; }
+.bubble.media-card .media.full { display: block; width: 100%; height: auto; aspect-ratio: auto; max-height: min(68vh, 460px); object-fit: contain; object-position: center; background: transparent; }
+.bubble .pic-wrap { position: relative; }
+.bubble .pic-time { position: absolute; right: 8px; bottom: 8px; display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: rgba(0, 0, 0, .5); color: #fff; font-size: 11.5px; line-height: 1.5; }
+.as-scrim { position: absolute; inset: 0; z-index: 40; background: rgba(0, 0, 0, .45); animation: cvFade .18s ease-out; }
+.as-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 41; display: flex; flex-direction: column; background: var(--cv-panel); border-radius: 28px 28px 0 0; overflow: hidden; animation: cvUp .2s ease-out; color: var(--cv-ink); }
+
+/* ===== Timeline: your profile card (Instagram-style horizontal header) ===== */
+.my-pro { margin: 14px 14px 0; padding: 14px 16px 14px; border-radius: 24px; display: flex; flex-direction: column; gap: 8px; }
+.mp-top { display: flex; align-items: center; gap: 14px; }
+.mp-avwrap { position: relative; flex: none; }
+.my-pro .avr.mp-av { width: 80px; height: 80px; padding: 3px; cursor: pointer; }
+.mp-plus { position: absolute; right: -2px; bottom: -2px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #1236c9, #3d6bff); border: 2.5px solid var(--bg, #000); }
+.mp-stats { flex: 1; min-width: 0; display: flex; justify-content: space-around; text-align: center; }
+.mp-stats b { display: block; font-size: 19px; font-weight: 700; color: var(--ink); line-height: 1.2; }
+.mp-stats span { font-size: 12.5px; color: var(--ink-2); }
+.mp-name { display: flex; flex-direction: column; align-items: flex-start; text-align: left; line-height: 1.25; }
+.mp-name b { font-size: 16.5px; font-weight: 600; color: var(--ink); }
+.mp-name span { font-size: 13px; color: var(--ink-2); }
+.mp-about { margin: 0; font-size: 13.5px; line-height: 1.35; color: var(--ink); overflow-wrap: anywhere; text-align: left; }
+.mp-about.add { color: var(--ink-2); padding: 0; }
+.mp-btns { display: flex; gap: 8px; margin-top: 4px; }
+.mp-btn { flex: 1; min-width: 0; height: 38px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--ink); background: rgba(127, 127, 160, .18); border: 1px solid rgba(127, 127, 160, .22); }
+.mp-btn:active { transform: scale(.97); }
+@media (max-width: 340px) { .my-pro .avr.mp-av { width: 66px; height: 66px; } .mp-stats b { font-size: 17px; } }

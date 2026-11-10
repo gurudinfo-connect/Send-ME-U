@@ -63,7 +63,9 @@ function Bubble({ m, avatar, starred, mark, onLongPress, onOpen }) {
   const up = () => clearTimeout(timer.current);
   const isMedia = m.type === 'video' || m.type === 'image';
   const short = m.type === 'text' && m.text.length < 34;
-  const cls = `bubble ${mine ? 'out' : 'in'} ${isMedia ? 'media-card' : ''} ${short ? 'inline-time' : ''}`;
+  const userVideo = m.type === 'video' && m.src?.startsWith('blob:'); // a video you picked yourself: show it uncropped too
+  const pic = m.type === 'image' || userVideo;
+  const cls = `bubble ${mine ? 'out' : 'in'} ${isMedia ? 'media-card' : ''} ${pic ? 'pic' : ''} ${short ? 'inline-time' : ''}`;
   return (
     <div className={`mrow ${mine ? 'me' : ''} ${mark ? `mk-${mark}` : ''}`} data-mid={m.id} style={m.reaction ? { marginBottom: 10 } : undefined}>
       {!mine && <img className="mav" src={avatar} alt="" />}
@@ -71,10 +73,10 @@ function Bubble({ m, avatar, starred, mark, onLongPress, onOpen }) {
         {m.type === 'text' && <span>{m.text}</span>}
         {m.type === 'story' && <StoryRef m={m} />}
         {m.type === 'voice' && <VoiceNote m={m} mine={mine} />}
-        {m.type === 'image' && <img className="media" src={m.src} alt="Shared" onClick={() => onOpen(m)} />}
+        {m.type === 'image' && <div className="pic-wrap"><img className="media full" src={m.src} alt="Shared" onClick={() => onOpen(m)} /><span className="pic-time">{fmtTime(m.at)}{mine && <Ticks status={m.status} />}</span></div>}
         {m.type === 'video' && (
           <div style={{ position: 'relative' }} onClick={() => onOpen(m)}>
-            {m.src?.startsWith('blob:') ? <video className="media" src={m.src} /> : <img className="media" src={m.src} alt="Video" />}
+            {m.src?.startsWith('blob:') ? <video className="media full" src={m.src} /> : <img className="media" src={m.src} alt="Video" />}
             {!m.hasPlay && <span style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}><span style={{ width: 62, height: 62, borderRadius: '50%', background: 'rgba(255,255,255,.25)', display: 'grid', placeItems: 'center', border: '3px solid #fff' }}><Play size={26} color="#fff" fill="#fff" /></span></span>}
             <span className="media-meta"><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Video size={18} fill="#fff" />{m.duration}</span><span>{fmtTime(m.at)}</span></span>
           </div>

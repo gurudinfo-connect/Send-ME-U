@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Clock, Smile, Cat, Apple, Volleyball, Car, Lightbulb, Search, Delete, Camera, Plus, Check, Image as Img, File as FileIcon, MapPin, UserRound } from 'lucide-react';
+import { Clock, Smile, Cat, Apple, Volleyball, Car, Lightbulb, Search, Delete, Camera, Plus, Check, Images, MapPin, User, FileText, AlignLeft, IndianRupee, CalendarDays, Sparkles, ChevronLeft } from 'lucide-react';
 
 /* ------------------------------------------------------------------ *
  *  Emoji panel — category strip, search, 8-column grid, and a floating
@@ -85,67 +85,76 @@ export function EmojiPanel({ onPick, onBackspace, notify }) {
 }
 
 /* ------------------------------------------------------------------ *
- *  Attachment sheet — photo grid with a camera tile and selection
- *  circles, plus a floating Gallery / File / Location / Contact bar.
+ *  Attachment sheet — drag handle, 4x2 action grid (Gallery, Location,
+ *  Contact, Document, Poll, Payment, Event, AI images) and a photo grid
+ *  that starts with a Camera tile. Photos you pick show up as tiles with
+ *  selection circles; "Send" sends the selected ones.
  * ------------------------------------------------------------------ */
 export function AttachSheet({ onClose, onSend, onCamera, onLocation, onContact, notify }) {
-  const [tab, setTab] = useState('gallery');
+  const [view, setView] = useState('home'); // home | contact
   const [picked, setPicked] = useState([]); // {id, url, file, video, on}
   const [cName, setCName] = useState('');
   const [cPhone, setCPhone] = useState('');
   const galleryRef = useRef(null);
-  const fileRef = useRef(null);
+  const docRef = useRef(null);
   const urls = useRef([]);
   useEffect(() => () => urls.current.forEach((u) => URL.revokeObjectURL(u)), []);
 
   const addPicked = (list) => {
-    const next = Array.from(list || []).filter((f) => f.type.startsWith('image') || f.type.startsWith('video')).map((file) => {
+    const all = Array.from(list || []);
+    const next = all.filter((f) => f.type.startsWith('image') || f.type.startsWith('video')).map((file) => {
       const url = URL.createObjectURL(file); urls.current.push(url);
       return { id: `${file.name}-${file.size}-${Math.random().toString(36).slice(2, 7)}`, url, file, video: file.type.startsWith('video'), on: true };
     });
-    if (next.length !== (list || []).length) notify?.('Only photos and videos can be sent for now');
+    if (next.length !== all.length) notify?.('Only photos and videos can be sent for now');
     setPicked((p) => [...next, ...p]);
   };
   const toggle = (id) => setPicked((p) => p.map((x) => (x.id === id ? { ...x, on: !x.on } : x)));
   const sel = picked.filter((x) => x.on);
-  const TABS = [['gallery', 'Gallery', Img], ['file', 'File', FileIcon], ['location', 'Location', MapPin], ['contact', 'Contact', UserRound]];
+  const soon = (l) => () => notify?.(`${l} is coming soon`);
+  const ACTIONS = [
+    ['Gallery', Images, '#2f7bff', () => galleryRef.current?.click()],
+    ['Location', MapPin, '#1fc99a', onLocation],
+    ['Contact', User, '#2fa8ff', () => setView('contact')],
+    ['Document', FileText, '#7a63ff', () => docRef.current?.click()],
+    ['Poll', AlignLeft, '#ffb02e', soon('Poll')],
+    ['Payment', IndianRupee, '#17b39a', soon('Payment')],
+    ['Event', CalendarDays, '#ff3d8b', soon('Event')],
+    ['AI images', Sparkles, '#2f7bff', soon('AI images')],
+  ];
 
   return (
     <>
       <div className="as-scrim" onClick={onClose} />
       <div className="as-sheet" role="dialog" aria-modal="true" aria-label="Attach">
+        <button type="button" className="as-handle" aria-label="Close attachments" onClick={onClose}><i /></button>
         <div className="as-body">
-          {tab === 'gallery' && (
-            <div className="as-grid">
-              <button type="button" className="as-tile as-cam" aria-label="Take a photo" onClick={onCamera}><Camera size={38} strokeWidth={2.2} /></button>
-              <button type="button" className="as-tile as-add" aria-label="Choose photos and videos" onClick={() => galleryRef.current?.click()}><Plus size={38} strokeWidth={2} /><span>Photos</span></button>
-              {picked.map((x) => (
-                <button key={x.id} type="button" className="as-tile" aria-pressed={x.on} aria-label={`${x.video ? 'Video' : 'Photo'} ${x.on ? 'selected' : 'not selected'}`} onClick={() => toggle(x.id)}>
-                  {x.video ? <video src={x.url} muted playsInline /> : <img src={x.url} alt="" />}
-                  <span className={`as-circ ${x.on ? 'on' : ''}`}>{x.on && <Check size={18} strokeWidth={3.2} />}</span>
-                </button>
-              ))}
-            </div>
+          {view === 'home' && (
+            <>
+              <div className="as-actions">
+                {ACTIONS.map(([l, I, color, fn]) => (
+                  <button key={l} type="button" className="as-act" onClick={fn}>
+                    <span className="as-actic"><I size={30} color={color} strokeWidth={2.2} /></span>
+                    <span>{l}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="as-grid">
+                <button type="button" className="as-tile as-cam" aria-label="Take a photo" onClick={onCamera}><Camera size={42} strokeWidth={1.8} /><span>Camera</span></button>
+                {picked.map((x) => (
+                  <button key={x.id} type="button" className="as-tile" aria-pressed={x.on} aria-label={`${x.video ? 'Video' : 'Photo'} ${x.on ? 'selected' : 'not selected'}`} onClick={() => toggle(x.id)}>
+                    {x.video ? <video src={x.url} muted playsInline /> : <img src={x.url} alt="" />}
+                    <span className={`as-circ ${x.on ? 'on' : ''}`}>{x.on && <Check size={18} strokeWidth={3.2} />}</span>
+                  </button>
+                ))}
+                <button type="button" className="as-tile as-add" aria-label="Choose photos and videos" onClick={() => galleryRef.current?.click()}><Plus size={36} strokeWidth={1.8} /><span>{picked.length ? 'Add more' : 'Choose photos'}</span></button>
+              </div>
+            </>
           )}
-          {tab === 'file' && (
-            <div className="as-card">
-              <span className="as-bigic"><FileIcon size={34} /></span>
-              <b>Send a file</b>
-              <p>Pick a photo or video from your device.</p>
-              <button type="button" className="as-cta" onClick={() => fileRef.current?.click()}>Choose file</button>
-            </div>
-          )}
-          {tab === 'location' && (
-            <div className="as-card">
-              <span className="as-bigic"><MapPin size={34} /></span>
-              <b>Share your location</b>
-              <p>Sends a map link to where you are right now.</p>
-              <button type="button" className="as-cta" onClick={onLocation}>Send current location</button>
-            </div>
-          )}
-          {tab === 'contact' && (
+          {view === 'contact' && (
             <div className="as-card as-form">
-              <span className="as-bigic"><UserRound size={34} /></span>
+              <button type="button" className="as-back" onClick={() => setView('home')}><ChevronLeft size={22} /> Back</button>
+              <span className="as-bigic"><User size={34} /></span>
               <b>Share a contact</b>
               <input placeholder="Name" aria-label="Contact name" maxLength={40} value={cName} onChange={(e) => setCName(e.target.value)} />
               <input placeholder="Phone number" aria-label="Contact phone" inputMode="tel" maxLength={20} value={cPhone} onChange={(e) => setCPhone(e.target.value.replace(/[^0-9+\- ]/g, ''))} />
@@ -153,12 +162,9 @@ export function AttachSheet({ onClose, onSend, onCamera, onLocation, onContact, 
             </div>
           )}
         </div>
-        {tab === 'gallery' && sel.length > 0 && <button type="button" className="as-send" onClick={() => onSend(sel.map((x) => x.file))}>Send {sel.length}</button>}
-        <div className="as-tabs" role="tablist" aria-label="Attachment type">
-          {TABS.map(([k, l, I]) => <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}><I size={28} strokeWidth={1.9} /><span>{l}</span></button>)}
-        </div>
+        {view === 'home' && sel.length > 0 && <button type="button" className="as-send" onClick={() => onSend(sel.map((x) => x.file))}>Send {sel.length} {sel.length === 1 ? 'photo' : 'photos'}</button>}
         <input ref={galleryRef} type="file" accept="image/*,video/*" multiple hidden onChange={(e) => { addPicked(e.target.files); e.target.value = ''; }} />
-        <input ref={fileRef} type="file" hidden onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ''; if (f.length) onSend(f); }} />
+        <input ref={docRef} type="file" hidden onChange={(e) => { const f = Array.from(e.target.files || []); e.target.value = ''; if (f.length) onSend(f); }} />
       </div>
     </>
   );

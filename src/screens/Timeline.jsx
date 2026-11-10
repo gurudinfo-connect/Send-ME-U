@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { MoreVertical, ChevronRight, SlidersHorizontal, UserPlus, Check, Users, User, EyeOff, Ban } from 'lucide-react';
+import { MoreVertical, ChevronRight, SlidersHorizontal, UserPlus, Check, Users, User, EyeOff, Ban, Plus, Share2 } from 'lucide-react';
 import { BrandBar, GlassTabs, PageTitle, ListSkeleton, Empty, ErrorState, Modal, Button, useAsync, clearAsyncCache } from '../components/ui';
 import { api, errMsg } from '../services/api';
-import { useUI } from '../store';
+import { useUI, useAuth } from '../store';
 import { followAction } from '../profile/relations';
 import { blockPerson } from '../profile/actions';
 
@@ -93,6 +93,40 @@ function PersonCard({ p, onOpen, onMenu, onToggle }) {
   );
 }
 
+// Your own profile, laid out horizontally like Instagram: photo + stats on one row, name/about below, then buttons.
+// Everything is edited on the dedicated pages: /profile (your page) and /profile/edit.
+function MyProfile() {
+  const nav = useNavigate();
+  const notify = useUI((s) => s.notify);
+  const user = useAuth((s) => s.user);
+  if (!user) return null;
+  const handle = (user.handle || '').replace(/^@/, '');
+  const link = `https://sendmeu.app/@${handle}`;
+  const share = async () => {
+    try { if (navigator.share) await navigator.share({ title: user.name, text: `${user.name} on Send ME/U`, url: link }); else { await navigator.clipboard.writeText(link); notify('Profile link copied'); } } catch { /* cancelled */ }
+  };
+  const stats = [['Posts', user.posts ?? 0], ['Friends', user.friends ?? 0], ['Albums', user.albums ?? 0]];
+  return (
+    <section className="my-pro glass" aria-label="Your profile">
+      <div className="mp-top">
+        <div className="mp-avwrap">
+          <button type="button" className="avr mp-av" aria-label="Open your profile" onClick={() => nav('/profile')}><img src={user.avatar} alt="" /></button>
+          <button type="button" className="mp-plus" aria-label="Change profile photo" onClick={() => nav('/profile/edit')}><Plus size={15} strokeWidth={3} /></button>
+        </div>
+        <div className="mp-stats">
+          {stats.map(([l, n]) => <div key={l}><b>{n}</b><span>{l}</span></div>)}
+        </div>
+      </div>
+      <button type="button" className="mp-name" onClick={() => nav('/profile')}><b>{user.name}</b><span>@{handle}</span></button>
+      {user.about ? <p className="mp-about">{user.about}</p> : <button type="button" className="mp-about add" onClick={() => nav('/profile/edit')}>+ Add something about you</button>}
+      <div className="mp-btns">
+        <button type="button" className="mp-btn" onClick={() => nav('/profile/edit')}>Edit profile</button>
+        <button type="button" className="mp-btn" onClick={share}><Share2 size={15} />Share profile</button>
+      </div>
+    </section>
+  );
+}
+
 // Timeline tab — people you know
 export default function Timeline() {
   const nav = useNavigate();
@@ -159,6 +193,7 @@ export default function Timeline() {
       <BrandBar bell onSearch={() => nav('/discover')} onMore={() => nav('/private')} />
       <div className="scroll" style={{ padding: '0 0 120px' }}>
         <PageTitle title="Timeline" sub="Your people, their moments" />
+        <MyProfile />
         <div className="filter-row" style={{ marginTop: 14 }}>
           <GlassTabs label="Filter people" items={FILTERS} value={filter} onChange={setFilter} />
           <button className="fchip round" aria-label="Filter options" onClick={() => nav('/discover')}><SlidersHorizontal size={20} /></button>
