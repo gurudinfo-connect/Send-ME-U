@@ -1,0 +1,1297 @@
+// Send ME/U — PostgreSQL schema (Prisma).
+// UUID primary keys, created/updated timestamps, soft deletes where content must be recoverable for moderation,
+// explicit ON DELETE behaviour, indexes on every hot query path.
+// Constraints Prisma cannot express (overlap exclusion, partial unique indexes, CHECKs) live in
+// prisma/migrations/*_constraints/migration.sql.
+
+generator client {
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma"
+  engineType = "client"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────────── enums ─────────────────────────────
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum OtpPurpose {
+  REGISTER
+  LOGIN
+  RESET_PASSWORD
+  PHONE_VERIFY
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+  COUPLE
+}
+
+enum MemberRole {
+  MEMBER
+  ADMIN
+  OWNER
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  VOICE
+  DOCUMENT
+  GIF
+  STICKER
+  STORY
+  LOVE_NOTE
+  SYSTEM
+}
+
+enum StoryType {
+  PHOTO
+  VIDEO
+  TEXT
+}
+
+enum StoryPrivacy {
+  EVERYONE
+  FOLLOWERS
+  SELECTED
+  COUPLE
+}
+
+enum CoupleStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  ENDED
+}
+
+enum CallType {
+  VOICE
+  VIDEO
+}
+
+enum CallStatus {
+  RINGING
+  ONGOING
+  ENDED
+  MISSED
+  REJECTED
+  CANCELED
+}
+
+enum NotificationType {
+  MESSAGE
+  CALL
+  STORY_REPLY
+  STORY_REACTION
+  FOLLOW
+  FOLLOW_REQUEST
+  COUPLE_INVITE
+  COUPLE_UPDATE
+  CALENDAR_REMINDER
+  STREAK
+  GROUP_INVITE
+  EVENT
+  SYSTEM
+}
+
+enum ReportTargetType {
+  USER
+  MESSAGE
+  STORY
+  POST
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+enum EventResponse {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REMOVED
+}
+
+// ───────────────────────────── identity ─────────────────────────────
+
+model User {
+  id              String        @id @default(uuid()) @db.Uuid
+  email           String        @unique // stored lower-case
+  phone           String?       @unique // E.164-ish, digits and leading +
+  username        String        @unique // stored lower-case
+  passwordHash    String
+  fullName        String
+  dateOfBirth     DateTime?     @db.Date
+  role            UserRole      @default(USER)
+  status          AccountStatus @default(ACTIVE)
+  suspendedReason String?
+  isPrivate       Boolean       @default(false)
+  verified        Boolean       @default(false)
+  emailVerifiedAt DateTime?
+  phoneVerifiedAt DateTime?
+  lastSeenAt      DateTime?
+  failedLogins    Int           @default(0)
+  lockedUntil     DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  profile  UserProfile?
+  settings UserSettings?
+  sessions UserSession[]
+  devices  Device[]
+  otpCodes OtpCode[]
+
+  followers       Follow[]        @relation("followee")
+  following       Follow[]        @relation("follower")
+  followRequestsIn  FollowRequest[] @relation("frTarget")
+  followRequestsOut FollowRequest[] @relation("frRequester")
+  blocking        BlockedUser[]   @relation("blocker")
+  blockedBy       BlockedUser[]   @relation("blocked")
+
+  memberships     ConversationMember[]
+  groupMemberships GroupMember[]
+  messages        Message[]
+  reactions       MessageReaction[]
+  receipts        MessageReadReceipt[]
+  privateChats    PrivateChat[]
+
+  stories         Story[]
+  storyViews      StoryViewer[]
+  storyReactions  StoryReaction[]
+  highlights      StoryHighlight[]
+  storyDrafts     StoryDraft[]
+
+  posts           Post[]
+  postLikes       PostLike[]
+  postSaves       PostSave[]
+  postComments    PostComment[]
+  postTags        PostTag[]
+
+  invitesSent     CoupleConnection[] @relation("inviter")
+  invitesReceived CoupleConnection[] @relation("invitee")
+  coupleMemories  CoupleMemory[]
+  coupleEvents    CoupleCalendarEvent[]
+  coupleJournal   CoupleJournal[]
+  coupleGoals     CoupleGoal[]
+  appointments    CoupleAppointment[]
+  availability    CoupleAvailability[]
+  locationSessions LocationSession[]
+  liveLocation    LiveLocation?
+
+  streaksA        Streak[]        @relation("streakA")
+  streaksB        Streak[]        @relation("streakB")
+
+  notifications   Notification[]  @relation("recipient")
+  notificationsActed Notification[] @relation("actor")
+
+  callsMade       Call[]
+  callParticipants CallParticipant[]
+  callFavorites   CallFavorite[]  @relation("favOwner")
+  callFavoriteOf  CallFavorite[]  @relation("favPeer")
+  scheduledCalls  ScheduledCall[] @relation("scOwner")
+  scheduledCallsWith ScheduledCall[] @relation("scPeer")
+  hostedEvents    CallEvent[]
+  eventGuests     CallEventGuest[]
+
+  savedPlaces     SavedPlace[]
+  channelsOwned   Channel[]
+  channelFollows  ChannelFollower[]
+
+  reportsMade     Report[]        @relation("reporter")
+  reportsAbout    Report[]        @relation("reportedUser")
+  reportsResolved Report[]        @relation("resolver")
+  auditLogs       AuditLog[]
+  messageDeletions MessageDeletion[]
+  starredMessages StarredMessage[]
+  dismissedSuggestions SuggestionDismissal[]
+
+  @@index([status, createdAt])
+  @@index([fullName])
+  @@map("users")
+}
+
+model UserProfile {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @unique @db.Uuid
+  bio          String   @default("")
+  about        String   @default("")
+  avatarUrl    String?
+  avatarThumbUrl String?
+  coverUrl     String?
+  title        String?
+  location     String?
+  website      String?
+  links        String?
+  skills       String[] @default([])
+  interests    String[] @default([])
+  latitude     Float?
+  longitude    Float?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model UserSettings {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @db.Uuid
+  // privacy
+  showLastSeen      Boolean @default(true)
+  showOnlineStatus  Boolean @default(true)
+  readReceipts      Boolean @default(true)
+  defaultStoryPrivacy StoryPrivacy @default(FOLLOWERS)
+  // notifications
+  pushEnabled       Boolean @default(true)
+  notifyMessages    Boolean @default(true)
+  notifyCalls       Boolean @default(true)
+  notifyStories     Boolean @default(true)
+  notifyFollows     Boolean @default(true)
+  notifyCouple      Boolean @default(true)
+  notifyCalendar    Boolean @default(true)
+  notifyStreaks     Boolean @default(true)
+  notifyGroups      Boolean @default(true)
+  quietHoursEnabled Boolean @default(false)
+  quietStartMin     Int     @default(1320) // minutes after local midnight (22:00)
+  quietEndMin       Int     @default(420)  // 07:00
+  timezone          String  @default("UTC")
+  // streak reminders (mirrors engine prefs)
+  streakPrefs       Json?
+  // private space
+  pinHash           String?
+  pinFailedAttempts Int     @default(0)
+  pinLockedUntil    DateTime?
+  recoveryHash      String? // hash of the recovery code shown once at setup
+  biometricEnabled  Boolean @default(false)
+  biometricHash     String? // hash of a device secret released only after a local biometric check
+  autoLockSeconds   Int     @default(60)
+  hideNotificationPreviews Boolean @default(false)
+  privateSpaceHidden Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+model UserSession {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @db.Uuid
+  deviceName   String?
+  platform     String?
+  userAgent    String?
+  ip           String?
+  createdAt    DateTime  @default(now())
+  lastActiveAt DateTime  @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokens  RefreshToken[]
+  devices Device[]
+
+  @@index([userId, revokedAt])
+  @@map("user_sessions")
+}
+
+model RefreshToken {
+  id           String    @id @default(uuid()) @db.Uuid
+  sessionId    String    @db.Uuid
+  userId       String    @db.Uuid
+  tokenHash    String    @unique // sha256 of the opaque token; the token itself is never stored
+  expiresAt    DateTime
+  usedAt       DateTime? // set when rotated; presenting a used token again = theft, revoke the session
+  revokedAt    DateTime?
+  replacedById String?   @db.Uuid
+  createdAt    DateTime  @default(now())
+
+  session UserSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model Device {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  sessionId  String?  @db.Uuid
+  platform   String   // ios | android | web
+  pushToken  String   @unique
+  appVersion String?
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session UserSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@map("devices")
+}
+
+model OtpCode {
+  id         String     @id @default(uuid()) @db.Uuid
+  userId     String?    @db.Uuid
+  target     String     // email or phone the code was sent to
+  purpose    OtpPurpose
+  codeHash   String
+  attempts   Int        @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime   @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([target, purpose, createdAt])
+  @@map("otp_codes")
+}
+
+// ───────────────────────────── social graph ─────────────────────────────
+
+model Follow {
+  followerId String   @db.Uuid
+  followeeId String   @db.Uuid
+  createdAt  DateTime @default(now())
+
+  follower User @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followee User @relation("followee", fields: [followeeId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followeeId])
+  @@index([followeeId, createdAt])
+  @@map("follows")
+}
+
+model FollowRequest {
+  requesterId String   @db.Uuid
+  targetId    String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  requester User @relation("frRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  target    User @relation("frTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@id([requesterId, targetId])
+  @@index([targetId, createdAt])
+  @@map("follow_requests")
+}
+
+model BlockedUser {
+  blockerId String   @db.Uuid
+  blockedId String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  blocker User @relation("blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId])
+  @@map("blocked_users")
+}
+
+model SuggestionDismissal {
+  userId      String   @db.Uuid
+  dismissedId String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, dismissedId])
+  @@map("suggestion_dismissals")
+}
+
+// ───────────────────────────── posts (profile grid) ─────────────────────────────
+
+model Post {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  mediaType  String    // image | video
+  mediaUrl   String
+  posterUrl  String?
+  durationS  Int?
+  caption    String    @default("")
+  deletedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes    PostLike[]
+  saves    PostSave[]
+  comments PostComment[]
+  tags     PostTag[]
+
+  @@index([userId, mediaType, createdAt(sort: Desc)])
+  @@map("posts")
+}
+
+model PostLike {
+  postId    String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId])
+  @@map("post_likes")
+}
+
+model PostSave {
+  postId    String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId])
+  @@map("post_saves")
+}
+
+model PostComment {
+  id        String   @id @default(uuid()) @db.Uuid
+  postId    String   @db.Uuid
+  userId    String   @db.Uuid
+  body      String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+  @@map("post_comments")
+}
+
+model PostTag {
+  postId String @db.Uuid
+  userId String @db.Uuid
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId])
+  @@map("post_tags")
+}
+
+// ───────────────────────────── chat ─────────────────────────────
+
+model Conversation {
+  id               String           @id @default(uuid()) @db.Uuid
+  type             ConversationType
+  // DIRECT: "<lowerUserId>:<higherUserId>" so two people can never end up with two direct chats
+  directKey        String?          @unique
+  createdById      String?          @db.Uuid
+  disappearAfterSec Int?            // null = messages stay
+  lastMessageAt    DateTime         @default(now())
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  members     ConversationMember[]
+  messages    Message[]
+  group       Group?
+  couple      CoupleConnection?
+  privateChats PrivateChat[]
+  calls       Call[]
+  streak      Streak?
+
+  @@index([lastMessageAt(sort: Desc)])
+  @@map("conversations")
+}
+
+model ConversationMember {
+  conversationId String     @db.Uuid
+  userId         String     @db.Uuid
+  role           MemberRole @default(MEMBER)
+  joinedAt       DateTime   @default(now())
+  leftAt         DateTime?
+  lastReadAt     DateTime   @default(now())
+  pinnedAt       DateTime?
+  archivedAt     DateTime?
+  mutedUntil     DateTime?  // year 9999 = always
+  favorite       Boolean    @default(false)
+  wallpaper      String?
+  contactName    String?    // local "add to contacts" nickname
+  contactPhone   String?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId, leftAt])
+  @@map("conversation_members")
+}
+
+model Group {
+  id             String   @id @default(uuid()) @db.Uuid
+  conversationId String   @unique @db.Uuid
+  name           String
+  about          String   @default("")
+  avatarUrl      String?
+  inviteCode     String   @unique
+  onlyAdminsPost Boolean  @default(false)
+  createdById    String   @db.Uuid
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  members      GroupMember[]
+
+  @@map("groups")
+}
+
+model GroupMember {
+  groupId   String     @db.Uuid
+  userId    String     @db.Uuid
+  role      MemberRole @default(MEMBER)
+  addedById String?    @db.Uuid
+  joinedAt  DateTime   @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@index([userId])
+  @@map("group_members")
+}
+
+// A conversation a user moved into Private Space. Visibility is enforced on the server: while locked the
+// conversation is omitted from normal lists and only readable with a valid private-space unlock token.
+model PrivateChat {
+  userId         String   @db.Uuid
+  conversationId String   @db.Uuid
+  lockedAt       DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, conversationId])
+  @@map("private_chats")
+}
+
+model Message {
+  id              String      @id @default(uuid()) @db.Uuid
+  conversationId  String      @db.Uuid
+  senderId        String?     @db.Uuid
+  type            MessageType @default(TEXT)
+  text            String?
+  clientId        String?     // idempotency key supplied by the client so a retry never double-sends
+  replyToId       String?     @db.Uuid
+  forwardedFromId String?     @db.Uuid
+  storyId         String?     @db.Uuid
+  storyKind       String?     // reaction | reply
+  storySnapshot   Json?       // { src, owner } kept after the story expires
+  emoji           String?
+  meta            Json?
+  editedAt        DateTime?
+  deletedAt       DateTime?   // deleted for everyone (soft)
+  pinnedAt        DateTime?
+  pinnedById      String?     @db.Uuid
+  expiresAt       DateTime?   // disappearing messages
+  createdAt       DateTime    @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User?        @relation(fields: [senderId], references: [id], onDelete: SetNull)
+  replyTo      Message?     @relation("replies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies      Message[]    @relation("replies")
+  forwardedFrom Message?    @relation("forwards", fields: [forwardedFromId], references: [id], onDelete: SetNull)
+  forwards     Message[]    @relation("forwards")
+  story        Story?       @relation(fields: [storyId], references: [id], onDelete: SetNull)
+
+  attachments MessageAttachment[]
+  reactions   MessageReaction[]
+  receipts    MessageReadReceipt[]
+  deletions   MessageDeletion[]
+  stars       StarredMessage[]
+
+  @@unique([conversationId, senderId, clientId])
+  @@index([conversationId, createdAt(sort: Desc), id])
+  @@index([conversationId, pinnedAt])
+  @@index([expiresAt])
+  @@index([senderId, createdAt])
+  @@map("messages")
+}
+
+model MessageAttachment {
+  id         String   @id @default(uuid()) @db.Uuid
+  messageId  String   @db.Uuid
+  kind       String   // image | video | voice | document | gif
+  storageKey String
+  url        String
+  thumbUrl   String?
+  mime       String
+  sizeBytes  Int
+  width      Int?
+  height     Int?
+  durationMs Int?
+  fileName   String?
+  createdAt  DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("message_attachments")
+}
+
+model MessageReaction {
+  messageId String   @db.Uuid
+  userId    String   @db.Uuid
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId])
+  @@map("message_reactions")
+}
+
+model MessageReadReceipt {
+  messageId   String    @db.Uuid
+  userId      String    @db.Uuid
+  deliveredAt DateTime?
+  readAt      DateTime?
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId])
+  @@index([userId, readAt])
+  @@map("message_read_receipts")
+}
+
+// "Delete for me"
+model MessageDeletion {
+  messageId String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId])
+  @@map("message_deletions")
+}
+
+model StarredMessage {
+  messageId String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId])
+  @@map("starred_messages")
+}
+
+// ───────────────────────────── stories ─────────────────────────────
+
+model Story {
+  id           String       @id @default(uuid()) @db.Uuid
+  userId       String       @db.Uuid
+  type         StoryType
+  mediaUrl     String?
+  thumbUrl     String?
+  mediaKey     String?
+  mime         String?
+  textContent  String?
+  bgColor      String?
+  caption      String?
+  // editor output: filter, crop/rotate transform, drawing strokes, text/sticker overlay items
+  meta         Json?
+  audioUrl     String?
+  audioKey     String?
+  audioMeta    Json?
+  privacy      StoryPrivacy @default(FOLLOWERS)
+  audienceIds  String[]     @default([]) @db.Uuid
+  mentionIds   String[]     @default([]) @db.Uuid
+  expiresAt    DateTime
+  deletedAt    DateTime?
+  createdAt    DateTime     @default(now())
+
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  viewers   StoryViewer[]
+  reactions StoryReaction[]
+  messages  Message[]
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+  @@map("stories")
+}
+
+model StoryViewer {
+  storyId  String   @db.Uuid
+  viewerId String   @db.Uuid
+  viewedAt DateTime @default(now())
+
+  story  Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  viewer User  @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@id([storyId, viewerId])
+  @@index([viewerId, viewedAt])
+  @@map("story_viewers")
+}
+
+model StoryReaction {
+  storyId   String   @db.Uuid
+  userId    String   @db.Uuid
+  emoji     String
+  createdAt DateTime @default(now())
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([storyId, userId])
+  @@map("story_reactions")
+}
+
+model StoryHighlight {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  title     String
+  coverUrl  String?
+  createdAt DateTime @default(now())
+
+  user  User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items StoryHighlightItem[]
+
+  @@index([userId, createdAt])
+  @@map("story_highlights")
+}
+
+// Highlights keep a snapshot so they outlive the 24-hour story.
+model StoryHighlightItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  highlightId String   @db.Uuid
+  position    Int      @default(0)
+  type        StoryType
+  mediaUrl    String?
+  thumbUrl    String?
+  textContent String?
+  bgColor     String?
+  meta        Json?
+  createdAt   DateTime @default(now())
+
+  highlight StoryHighlight @relation(fields: [highlightId], references: [id], onDelete: Cascade)
+
+  @@index([highlightId, position])
+  @@map("story_highlight_items")
+}
+
+model StoryDraft {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  mediaUrl  String?
+  mediaKey  String?
+  payload   Json     // caption, filter, transform, overlay, audience, text story fields
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("story_drafts")
+}
+
+// ───────────────────────────── couples ─────────────────────────────
+
+model CoupleConnection {
+  id             String       @id @default(uuid()) @db.Uuid
+  inviterId      String       @db.Uuid
+  inviteeId      String       @db.Uuid
+  status         CoupleStatus @default(PENDING)
+  coupleName     String?
+  startDate      DateTime?    @db.Date
+  anniversary    DateTime?    @db.Date
+  coverUrl       String?
+  theme          String?
+  conversationId String?      @unique @db.Uuid
+  respondedAt    DateTime?
+  endedAt        DateTime?
+  endedById      String?      @db.Uuid
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  inviter      User          @relation("inviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  invitee      User          @relation("invitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  events        CoupleCalendarEvent[]
+  memories      CoupleMemory[]
+  journal       CoupleJournal[]
+  goals         CoupleGoal[]
+  appointments  CoupleAppointment[]
+  availability  CoupleAvailability[]
+  locationSessions LocationSession[]
+  liveLocations LiveLocation[]
+
+  @@index([inviterId, status])
+  @@index([inviteeId, status])
+  @@map("couple_connections")
+}
+
+model CoupleCalendarEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  coupleId    String?   @db.Uuid // null = personal event, set = shared with the partner
+  ownerId     String    @db.Uuid
+  title       String
+  date        DateTime  @db.Date
+  time        String?   // HH:mm local
+  kind        String    @default("love") // love | cake | trip | other
+  reminder    String?   // "1 day before", ...
+  remindAt    DateTime?
+  notifiedAt  DateTime?
+  note        String    @default("")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  couple CoupleConnection? @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  owner  User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([coupleId, date])
+  @@index([ownerId, date])
+  @@index([remindAt, notifiedAt])
+  @@map("couple_calendar_events")
+}
+
+// Photos/videos in the user's Memories. coupleId set = shared with the partner (private to the two of them).
+model CoupleMemory {
+  id         String    @id @default(uuid()) @db.Uuid
+  ownerId    String    @db.Uuid
+  coupleId   String?   @db.Uuid
+  type       String    // photo | video
+  album      String    @default("General")
+  caption    String    @default("")
+  mediaUrl   String
+  thumbUrl   String?
+  storageKey String?
+  durationS  Int?
+  takenAt    DateTime  @default(now())
+  deletedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  owner  User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  couple CoupleConnection? @relation(fields: [coupleId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId, takenAt(sort: Desc)])
+  @@index([coupleId, takenAt(sort: Desc)])
+  @@map("couple_memories")
+}
+
+model CoupleJournal {
+  id        String   @id @default(uuid()) @db.Uuid
+  coupleId  String   @db.Uuid
+  authorId  String   @db.Uuid
+  title     String
+  body      String
+  date      DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  couple CoupleConnection @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  author User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([coupleId, date(sort: Desc)])
+  @@map("couple_journal")
+}
+
+// Shared bucket list
+model CoupleGoal {
+  id        String   @id @default(uuid()) @db.Uuid
+  coupleId  String   @db.Uuid
+  authorId  String   @db.Uuid
+  title     String
+  done      Boolean  @default(false)
+  doneAt    DateTime?
+  createdAt DateTime @default(now())
+
+  couple CoupleConnection @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  author User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([coupleId, createdAt])
+  @@map("couple_goals")
+}
+
+model CoupleAppointment {
+  id         String   @id @default(uuid()) @db.Uuid
+  coupleId   String   @db.Uuid
+  createdById String  @db.Uuid
+  title      String
+  location   String   @default("")
+  startTime  DateTime
+  endTime    DateTime
+  notes      String   @default("") // only ever returned to createdBy
+  visibility String   @default("shared") // shared | private
+  remindedAt DateTime?
+  status     String   @default("confirmed") // confirmed | cancelled
+  rev        Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  couple    CoupleConnection @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  createdBy User             @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([coupleId, startTime])
+  @@index([createdById, startTime])
+  @@map("couple_appointments")
+}
+
+model CoupleAvailability {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  coupleId  String   @db.Uuid
+  startTime DateTime
+  endTime   DateTime
+  type      String   // busy | available
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  couple CoupleConnection @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startTime])
+  @@index([coupleId, startTime])
+  @@map("couple_availability")
+}
+
+model LocationSession {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  coupleId  String    @db.Uuid
+  isActive  Boolean   @default(true)
+  expiresAt DateTime?
+  startedAt DateTime  @default(now())
+  stoppedAt DateTime?
+
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  couple CoupleConnection @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@map("location_sessions")
+}
+
+// Latest position only. No history table on purpose.
+model LiveLocation {
+  userId    String   @id @db.Uuid
+  coupleId  String   @db.Uuid
+  latitude  Float
+  longitude Float
+  accuracy  Float?
+  updatedAt DateTime @default(now())
+
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  couple CoupleConnection @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  @@index([coupleId])
+  @@map("live_locations")
+}
+
+// ───────────────────────────── streaks ─────────────────────────────
+
+// One row per direct conversation. Rules live in src/modules/streaks/engine.js; `state` is the engine's JSON state,
+// the columns beside it exist for indexing/listing. Always written under a row lock on the server clock.
+model Streak {
+  conversationId String   @id @db.Uuid
+  userAId        String   @db.Uuid // userAId < userBId
+  userBId        String   @db.Uuid
+  tz             String   @default("UTC")
+  currentCount   Int      @default(0)
+  longestCount   Int      @default(0)
+  status         String   @default("none") // none | active | at_risk | expired
+  expiresAt      DateTime?
+  blocked        Boolean  @default(false)
+  state          Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userA        User         @relation("streakA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB        User         @relation("streakB", fields: [userBId], references: [id], onDelete: Cascade)
+  events       StreakEvent[]
+  runs         StreakRun[]
+
+  @@index([userAId])
+  @@index([userBId])
+  @@index([expiresAt])
+  @@map("streaks")
+}
+
+// idempotency: one row per processed message
+model StreakEvent {
+  conversationId String   @db.Uuid
+  messageId      String
+  userId         String   @db.Uuid
+  kind           String
+  dayKey         String
+  createdAt      DateTime @default(now())
+
+  streak Streak @relation(fields: [conversationId], references: [conversationId], onDelete: Cascade)
+
+  @@id([conversationId, messageId])
+  @@index([conversationId, userId, dayKey])
+  @@map("streak_events")
+}
+
+// streak history: one row per run (started, incremented, expired, recovered)
+model StreakRun {
+  id             String    @id @default(uuid()) @db.Uuid
+  conversationId String    @db.Uuid
+  run            Int
+  startedAt      DateTime
+  endedAt        DateTime?
+  length         Int       @default(0)
+  endReason      String?   // expired | recovered | blocked
+
+  streak Streak @relation(fields: [conversationId], references: [conversationId], onDelete: Cascade)
+
+  @@unique([conversationId, run])
+  @@map("streak_runs")
+}
+
+// ───────────────────────────── notifications ─────────────────────────────
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  actorId   String?          @db.Uuid
+  type      NotificationType
+  title     String
+  body      String           @default("")
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user  User  @relation("recipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("actor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+// ───────────────────────────── calls ─────────────────────────────
+
+model Call {
+  id             String     @id @default(uuid()) @db.Uuid
+  callerId       String     @db.Uuid
+  conversationId String?    @db.Uuid
+  type           CallType
+  status         CallStatus @default(RINGING)
+  answeredAt     DateTime?
+  endedAt        DateTime?
+  durationSec    Int?
+  endReason      String?
+  createdAt      DateTime   @default(now())
+
+  caller       User              @relation(fields: [callerId], references: [id], onDelete: Cascade)
+  conversation Conversation?     @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  participants CallParticipant[]
+
+  @@index([callerId, createdAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@map("calls")
+}
+
+model CallParticipant {
+  callId   String    @db.Uuid
+  userId   String    @db.Uuid
+  role     String    @default("callee") // caller | callee
+  joinedAt DateTime?
+  leftAt   DateTime?
+  clearedAt DateTime? // removed from this user's call log
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([callId, userId])
+  @@index([userId])
+  @@map("call_participants")
+}
+
+model CallFavorite {
+  userId String @db.Uuid
+  peerId String @db.Uuid
+
+  user User @relation("favOwner", fields: [userId], references: [id], onDelete: Cascade)
+  peer User @relation("favPeer", fields: [peerId], references: [id], onDelete: Cascade)
+
+  @@id([userId, peerId])
+  @@map("call_favorites")
+}
+
+model ScheduledCall {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  peerId    String   @db.Uuid
+  at        DateTime
+  video     Boolean  @default(false)
+  note      String   @default("")
+  notifiedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation("scOwner", fields: [userId], references: [id], onDelete: Cascade)
+  peer User @relation("scPeer", fields: [peerId], references: [id], onDelete: Cascade)
+
+  @@index([userId, at])
+  @@map("scheduled_calls")
+}
+
+// Group "call events" with an invite link
+model CallEvent {
+  id               String   @id @default(uuid()) @db.Uuid
+  hostId           String   @db.Uuid
+  title            String
+  description      String   @default("")
+  imageUrl         String?
+  startsAt         DateTime
+  endsAt           DateTime
+  callType         CallType
+  meetingId        String   @unique
+  requireApproval  Boolean  @default(false)
+  reminderMinutes  Int      @default(15)
+  hostReminderMinutes Int?  // host's own override (null = event default, 0 = none)
+  hostReminderSentAt  DateTime?
+  status           String   @default("scheduled") // scheduled | cancelled
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  host   User             @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  guests CallEventGuest[]
+
+  @@index([hostId, startsAt])
+  @@index([startsAt, status])
+  @@map("call_events")
+}
+
+model CallEventGuest {
+  eventId       String        @db.Uuid
+  userId        String        @db.Uuid
+  response      EventResponse @default(PENDING)
+  approved      Boolean       @default(false)
+  joinRequested Boolean       @default(false)
+  viaLink       Boolean       @default(false)
+  joinedAt      DateTime?
+  leftAt        DateTime?
+  reminderSentAt DateTime?
+  reminderMinutes Int?          // personal override (null = event default, 0 = none)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  event CallEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, userId])
+  @@index([userId, response])
+  @@map("call_event_guests")
+}
+
+// ───────────────────────────── misc ─────────────────────────────
+
+model SavedPlace {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  name      String
+  address   String   @default("")
+  latitude  Float?
+  longitude Float?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("saved_places")
+}
+
+model Channel {
+  id        String   @id @default(uuid()) @db.Uuid
+  ownerId   String   @db.Uuid
+  name      String
+  about     String   @default("")
+  category  String   @default("General")
+  logoUrl   String?
+  lastPost  String   @default("")
+  lastPostAt DateTime?
+  createdAt DateTime @default(now())
+
+  owner     User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  followers ChannelFollower[]
+
+  @@index([category])
+  @@map("channels")
+}
+
+model ChannelFollower {
+  channelId String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([channelId, userId])
+  @@map("channel_followers")
+}
+
+model Report {
+  id           String           @id @default(uuid()) @db.Uuid
+  reporterId   String           @db.Uuid
+  targetType   ReportTargetType
+  targetId     String           // uuid of the user / message / story / post
+  reportedUserId String?        @db.Uuid
+  reason       String
+  details      String           @default("")
+  status       ReportStatus     @default(OPEN)
+  resolvedById String?          @db.Uuid
+  resolvedAt   DateTime?
+  resolution   String?
+  createdAt    DateTime         @default(now())
+
+  reporter     User  @relation("reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser User? @relation("reportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  resolver     User? @relation("resolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([targetType, targetId])
+  @@map("reports")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @db.Uuid
+  action     String
+  targetType String?
+  targetId   String?
+  ip         String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}

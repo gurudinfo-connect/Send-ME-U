@@ -1,0 +1,10 @@
+export const ms: (t: any) => number;
+export const iso: (t: any) => string;
+export function validateRange(start: any, end: any, opts?: any): { ok: boolean; code?: string; message?: string };
+export function mutualAvailability(o: any): any;
+export function busyFor(userId: string, ctx: any): any;
+export function availableFor(userId: string, availability: any[]): any;
+export function checkBooking(o: any): { ok: boolean; code?: string; message?: string };
+export function checkPersonal(o: any): { ok: boolean; code?: string; message?: string };
+export function viewAppointment(a: any, viewerId: string): any;
+export const apptLabel: (a: any) => string;

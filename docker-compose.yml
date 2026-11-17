@@ -1,0 +1,39 @@
+# Local / single-host deployment:  docker compose up --build
+# Copy backend/.env.example to backend/.env first and set the secrets (JWT_ACCESS_SECRET, OTP_PEPPER, ADMIN_PASSWORD).
+services:
+  api:
+    build: { context: ., dockerfile: Dockerfile, args: { VITE_USE_MOCK: "false", VITE_API_BASE_URL: /api/v1, VITE_SOCKET_URL: "" } }
+    restart: unless-stopped
+    env_file: backend/.env
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: postgresql://sendmeu:${POSTGRES_PASSWORD:-sendmeu}@postgres:5432/sendmeu?schema=public
+      REDIS_URL: redis://redis:6379
+      UPLOAD_DIR: /data/uploads
+    ports: ["5000:5000"]
+    volumes: [uploads:/data/uploads]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment: { POSTGRES_USER: sendmeu, POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-sendmeu}", POSTGRES_DB: sendmeu }
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U sendmeu"], interval: 5s, timeout: 3s, retries: 20 }
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redisdata:/data]
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 5s, timeout: 3s, retries: 20 }
+  # Optional S3-compatible storage for testing the S3 driver locally:  docker compose --profile s3 up
+  minio:
+    profiles: ["s3"]
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment: { MINIO_ROOT_USER: minio, MINIO_ROOT_PASSWORD: minio12345 }
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [miniodata:/data]
+volumes: { uploads: {}, pgdata: {}, redisdata: {}, miniodata: {} }

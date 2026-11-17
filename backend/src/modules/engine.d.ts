@@ -1,0 +1,14 @@
+export const MILESTONES: number[];
+export function dayKey(ms: number, tz?: string): string;
+export function addDays(key: string, n: number): string;
+export function newStreak(o: { friendshipId: string; userIds: string[]; tz?: string; now?: number }): any;
+export function evaluate(state: any, now: number, cfg?: any): { state: any; events: any[] };
+export function applyActivity(state: any, activity: any, ctx?: any): { state: any; changed: boolean; ignored?: string; events: any[] };
+export function recover(state: any, userId: string, now: number, cfg?: any): { ok: boolean; reason?: string; state: any; events?: any[] };
+export function contributionStatus(state: any, now: number, cfg?: any): any;
+export function defaultReminderPrefs(): { enabled: boolean; push: boolean; inApp: boolean; hoursBefore: number };
+export function shouldRemind(state: any, userId: string, prefs: any, now: number, cfg?: any): boolean;
+export function markReminded(state: any, userId: string): any;
+export function friendshipMessage(count: number, status: string): string;
+export function startOfDay(key: string, tz?: string): number;
+export function endOfDay(key: string, tz?: string): number;

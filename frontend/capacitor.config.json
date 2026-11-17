@@ -1,0 +1,11 @@
+{
+  "appId": "app.sendmeu.mobile",
+  "appName": "Send ME/U",
+  "webDir": "dist",
+  "backgroundColor": "#ffffff",
+  "server": { "androidScheme": "https", "cleartext": false },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 800, "backgroundColor": "#ffffff", "showSpinner": false },
+    "StatusBar": { "style": "DEFAULT" }
+  }
+}
